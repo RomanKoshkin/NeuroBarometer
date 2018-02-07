@@ -2,7 +2,7 @@ clear a_accuracy u_accuracy
 
 %% define model parameters:
 LAMBDA = 1e5;
-shift_sec = [-0.5 -0.25 0 0.25 0.5]; % vector of stimulus shifts
+shift_sec = 0 %[-0.5 -0.25 0 0.25 0.5]; % vector of stimulus shifts
 
 for sh = 1:length(shift_sec)
     % lags start and end:

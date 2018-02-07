@@ -75,7 +75,12 @@ end
 
 % Calculate model
 % model = (X'*X)\(X'*y);            % without regularization
-model = (X'*X + lambda*M)\(X'*y);   % with regularization
+
+
+% model = (X'*X + lambda*M)\(X'*y);   % with regularization
+% Alex said so:
+Rxx = X'*X;
+model = (Rxx + lambda*trace(Rxx)/size(Rxx,1)*M)\(X'*y); 
 
 % Format outputs
 const = model(1:size(x,2),:);
