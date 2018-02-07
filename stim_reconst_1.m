@@ -1,7 +1,7 @@
 clear a_accuracy u_accuracy S mu_Ratt mu_Runatt
 
 %% define model parameters:
-LAMBDA = 0.03;
+LAMBDA = 0.05;
 % shift_sec = [-2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5 0.75 1]; % vector of stimulus shifts
 shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 compute_envelope = 1
