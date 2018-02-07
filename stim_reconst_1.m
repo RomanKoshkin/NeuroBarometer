@@ -4,11 +4,12 @@ clear a_accuracy u_accuracy S mu_Ratt mu_Runatt
 LAMBDA = 0.03;
 % shift_sec = [-2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5 0.75 1]; % vector of stimulus shifts
 shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
+compute_envelope = 1
 
 for sh = 1:length(shift_sec)
     % lags start and end:
     or = 0;    % kernel origin, ms
-    en = [300]; % kernel end, ms (here you can add a vector of ends, getting different kernel lengths)
+    en = [100]; % kernel end, ms (here you can add a vector of ends, getting different kernel lengths)
     events = 5:64; % event ordinal numbers in the 
 
     %% internals:
@@ -53,11 +54,14 @@ for sh = 1:length(shift_sec)
             fin = round(EEG.event(j+1).latency);
             
             
-
-%             stimLeft = abs(hilbert(EEG.data(ch_left, start:fin)))';
-%             stimRight = abs(hilbert(EEG.data(ch_right, start:fin)))';
-            stimLeft = EEG.data(ch_left, start:fin)';
-            stimRight = EEG.data(ch_right, start:fin)';
+            if compute_envelope == 1
+                stimLeft = abs(hilbert(EEG.data(ch_left, start:fin)))';
+                stimRight = abs(hilbert(EEG.data(ch_right, start:fin)))';
+            else
+                stimLeft = EEG.data(ch_left, start:fin)';
+                stimRight = EEG.data(ch_right, start:fin)';
+            end
+            
             response = EEG.data(1:60, start:fin)';
 
             [wLeft,t, Lcon] = mTRFtrain(stimLeft, response, Fs, 1, or, en(i), LAMBDA);
@@ -92,14 +96,18 @@ for sh = 1:length(shift_sec)
 
             start = round(EEG.event(j).latency);
             fin = round(EEG.event(j+1).latency);
-
-            % stimLeft = abs(hilbert(EEG.data(ch_left, start:fin)))';
-            stimLeft = EEG.data(ch_left, start:fin)';
-            stimLeft = circshift(stimLeft, Fs*shift_sec(sh));
             
-            % stimRight = abs(hilbert(EEG.data(ch_right, start:fin)))';
-            stimRight = EEG.data(ch_right, start:fin)';
+            if compute_envelope == 1
+                stimLeft = abs(hilbert(EEG.data(ch_left, start:fin)))';
+                stimRight = abs(hilbert(EEG.data(ch_right, start:fin)))';
+            else
+                stimLeft = EEG.data(ch_left, start:fin)';
+                stimRight = EEG.data(ch_right, start:fin)';
+            end
+            
+            stimLeft = circshift(stimLeft, Fs*shift_sec(sh));
             stimRight = circshift(stimRight, Fs*shift_sec(sh));
+            
             response = EEG.data(1:60, start:fin)';
 
 
