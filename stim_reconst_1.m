@@ -1,7 +1,7 @@
 clear a_accuracy u_accuracy S mu_Ratt mu_Runatt
 
 %% define model parameters:
-LAMBDA = 0.05;
+LAMBDA = 0.01;
 % shift_sec = [-2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5 0.75 1]; % vector of stimulus shifts
 shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 compute_envelope = 1
@@ -9,7 +9,7 @@ compute_envelope = 1
 for sh = 1:length(shift_sec)
     % lags start and end:
     or = 0;    % kernel origin, ms
-    en = [100]; % kernel end, ms (here you can add a vector of ends, getting different kernel lengths)
+    en = [50]; % kernel end, ms (here you can add a vector of ends, getting different kernel lengths)
     events = 5:64; % event ordinal numbers in the 
 
     %% internals:
@@ -24,7 +24,8 @@ for sh = 1:length(shift_sec)
         
         S(1).type = EEG.event(1).type;
         counter = 0;
-        for j = events     
+        for j = events
+            tic
                         
             if strcmp(EEG.event(j).type, 'L_Lef_on') == 1 
                 counter = counter + 1;
@@ -80,10 +81,13 @@ for sh = 1:length(shift_sec)
                 end
 
             % report progress:
+            elapsed_time = toc;
             disp(['Computing decoder from trial:' num2str(j)...
                 '        Shift: ' num2str(shift_sec(sh)) ' seconds'...
-                        ' Kernel length: ' num2str(en(i))])
-
+                        ' Kernel length: ' num2str(en(i)) ' Elapsed: '...
+                        num2str(elapsed_time)])
+                    
+             
         end
 
         % average the decoder over all the 30-second-long trials:
@@ -105,19 +109,23 @@ for sh = 1:length(shift_sec)
                 stimRight = EEG.data(ch_right, start:fin)';
             end
             
-            stimLeft = circshift(stimLeft, Fs*shift_sec(sh));
-            stimRight = circshift(stimRight, Fs*shift_sec(sh));
+            try
+                stimLeft = circshift(stimLeft, Fs*shift_sec(sh));
+                stimRight = circshift(stimRight, Fs*shift_sec(sh));
+            catch
+                disp(['sh = ' num2str(sh)])
+            end
             
             response = EEG.data(1:60, start:fin)';
 
 
 
-            [recon,S(counter).a_r_left,p,MSE] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en(i), Lcon);
-            [recon,S(counter).a_r_right,p,MSE] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en(i), Lcon);
+            [recon, S(counter).a_r_left, p, S(counter).a_MSE_left] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en(i), Lcon);
+            [recon, S(counter).a_r_right, p, S(counter).a_MSE_right] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en(i), Lcon);
 
-            [recon,S(counter).u_r_left,p,MSE] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en(i), Lcon);
-            [recon,S(counter).u_r_right,p,MSE] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en(i), Lcon);
-
+            [recon, S(counter).u_r_left, p, S(counter).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en(i), Lcon);
+            [recon, S(counter).u_r_right, p, S(counter).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en(i), Lcon);
+            
         end
 
         for j = 1:length(S)
@@ -186,7 +194,9 @@ for sh = 1:length(shift_sec)
         ax.YLim = [-0.1 0.25];
         ax.XLim = [-0.1 0.25];
         mu_Ratt(sh) = mean([S.a_r_att]);
+        SEM_Ratt(sh) = std([S.a_r_att])/sqrt(length([S.a_r_att]));
         mu_Runatt(sh) = mean([S.u_r_att]);
+        SEM_Runatt(sh) = std([S.u_r_att])/sqrt(length([S.u_r_att]));
     end
 end
 
@@ -197,19 +207,22 @@ plot(1:length(shift_sec), a_accuracy, 1:length(shift_sec), u_accuracy, 'LineWidt
 ax = gca;
 ax.XTick = 1:length(shift_sec);
 ax.XTickLabels = {shift_sec};
-title(['Unfiltered/Unreferenced, Kernel = ' num2str(en(i)) ' \lambda = ' num2str(LAMBDA)], 'FontSize', 14)
+title(['Filtered/UNReferenced, Kernel = ' num2str(en(i)) ' \lambda = ' num2str(LAMBDA)], 'FontSize', 14)
 legend({'attended accuracy', 'unattended accuracy'}, 'FontSize', 12)
 ylabel ('Classification accuracy', 'FontSize', 16)
 xlabel ('Stimulus shift relative to real time', 'FontSize', 16)
 grid on
 
 subplot(1,2,2)
-plot(1:length(shift_sec), mu_Ratt, 1:length(shift_sec), mu_Runatt, 'LineWidth', 3)
+errorbar(1:length(shift_sec), mu_Ratt, 1.98*SEM_Ratt, 'LineWidth', 3)
+hold on
+errorbar(1:length(shift_sec), mu_Runatt, 1.98*SEM_Runatt, 'LineWidth', 3)
 ax = gca;
 ax.XTick = 1:length(shift_sec);
 ax.XTickLabels = {shift_sec};
-title(['Correlation vs. Time Shift, Kernel = ' num2str(en(i)) ' \lambda = ' num2str(LAMBDA)], 'FontSize', 14)
+title(['Correlation vs. Time Shift, Kernel = ' num2str(en(i)) ' \lambda = ' num2str(LAMBDA) ' (bars show 95%-CIs (1.98*SEM))'], 'FontSize', 14)
 legend({'R_{attended}', 'R_{unattended}'}, 'FontSize', 12)
 ylabel ('Pearsons R', 'FontSize', 16)
 xlabel ('Stimulus shift relative to real time', 'FontSize', 16)
 grid on
+savefig('Figure.fig')

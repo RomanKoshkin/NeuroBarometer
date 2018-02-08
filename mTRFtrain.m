@@ -44,6 +44,7 @@ function [model,t,const] = mTRFtrain(stim,resp,Fs,dir,start,fin,lambda)
 %   Website: http://lalorlab.net/
 %   April 2014; Last revision: 3 October 2015
 
+
 % Convert time lags to samples
 start = floor(start/1e3*Fs);
 fin = ceil(fin/1e3*Fs);
