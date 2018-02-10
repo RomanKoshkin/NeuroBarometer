@@ -2,20 +2,20 @@
 % efficient.
 
 load('EEG.mat')
-clearvars -except EEG ga ua
+clearvars -except EEG
 tic
 %% define model parameters:
 LAMBDA = 0.03;
 len_win_classified = 30;
-shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
+% shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 % shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-% shift_sec = [-1 0];
+shift_sec = [-1 0];
 
 compute_envelope = 1;
 % lags start and end:
-or = -50;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 100;
+or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
+en = 500;
 
 % range of events in the EEG.event struct
 events = 5:64; % event ordinal numbers in the 
@@ -150,7 +150,7 @@ for sh = 1:length(shift_sec)
 
         [~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en, Lcon);
         [~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en, Lcon);
-        disp(['parallel mode, iteration ' num2str(j)])
+        disp(['parallel mode, trial ' num2str(j) ' Shift ' num2str(shift_sec(sh))])
     end
 
     for j = 1:length(S)
@@ -250,5 +250,6 @@ legend({'R_{attended}', 'R_{unattended}'}, 'FontSize', 12)
 ylabel ('Pearsons R', 'FontSize', 16)
 xlabel ('Stimulus shift relative to real time', 'FontSize', 16)
 grid on
-save('output.mat', 'S', 'g_att', 'g_unatt', 'en', 'shift_sec', 'LAMBDA', 'mu_Ratt', 'mu_Runatt', 'SEM_Ratt', 'SEM_Runatt', 'a_accuracy', 'u_accuracy', 'Lcon')
+save('output.mat', 'S', 'g_att', 'g_unatt', 'en', 'or', 'shift_sec', 'LAMBDA', 'mu_Ratt', 'mu_Runatt', 'SEM_Ratt', 'SEM_Runatt', 'a_accuracy', 'u_accuracy', 'Lcon')
 toc
+% now run real_time.m

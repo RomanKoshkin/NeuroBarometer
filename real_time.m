@@ -1,15 +1,16 @@
+% run this file AFTER you run stim_reconst_2.m
+clear
 load('EEG.mat')
-load('output.mat')
+load('output.mat') % stores a lot of things, including the two decoders.
 %%
 
-    ch_left = find(ismember({EEG.chanlocs.labels}, 'Left_AUX') == 1);
-    ch_right = find(ismember({EEG.chanlocs.labels},'Right_AUX') == 1);
-    Fs = EEG.srate;
+ch_left = find(ismember({EEG.chanlocs.labels}, 'Left_AUX') == 1);
+ch_right = find(ismember({EEG.chanlocs.labels},'Right_AUX') == 1);
+Fs = EEG.srate;
 
 compute_envelope = 1;
 Fs = EEG.srate
-or = 0;    % kernel origin, ms
-en = 500;
+
 steps = round(1:Fs*1:length(EEG.data)-Fs*30);
 parfor step_no = 1:length(steps)
     start = steps(step_no)
@@ -26,7 +27,7 @@ parfor step_no = 1:length(steps)
     response = EEG.data(1:60, start:fin)';
 
     [recon, a_r_left(step_no), p, a_MSE_left(step_no)] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en, Lcon);
-    [recon, a_r_right(step_no), p, S(step_no).a_MSE_right(step_no)] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en, Lcon);
+    [recon, a_r_right(step_no), p, a_MSE_right(step_no)] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en, Lcon);
 
     [recon, u_r_left(step_no), p, u_MSE_left(step_no)] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en, Lcon);
     [recon, u_r_right(step_no), p, u_MSE_right(step_no)] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en, Lcon);
