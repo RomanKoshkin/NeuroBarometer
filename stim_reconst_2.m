@@ -6,6 +6,7 @@ clearvars -except EEG ga ua
 tic
 %% define model parameters:
 LAMBDA = 0.03;
+len_win_classified = 30;
 shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 % shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
@@ -13,10 +14,13 @@ shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5
 
 compute_envelope = 1;
 % lags start and end:
-or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
+or = -50;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
 en = 100;
+
+% range of events in the EEG.event struct
 events = 5:64; % event ordinal numbers in the 
 
+% initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
     'a_r_left', [], 'u_r_left', [], 'a_r_right', [], 'u_r_right', [],...
     'a_MSE_left', [], 'u_MSE_left', [], 'a_MSE_right', '?', 'u_MSE_right', []);
@@ -24,10 +28,7 @@ ch_left = find(ismember({EEG.chanlocs.labels}, 'Left_AUX') == 1);
 ch_right = find(ismember({EEG.chanlocs.labels},'Right_AUX') == 1);
 Fs = EEG.srate;
 
-
-% g_att = [];         % attended decoder tensor
-% g_unatt = [];       % unattended decoder tensor
-
+% determine what's right, what's left:
 for j = events
     if strcmp(EEG.event(j).type, 'L_Lef_on') == 1 
         S(j).type = 'left';
@@ -60,10 +61,11 @@ S = S(~cellfun('isempty',{S.code_no}));
 % variables, with the RIGHT SIZES!!!. Parfor works like a function. It only
 % returns what has been declared before. If you define a var inside a
 % parfor loop, it is never returned.
+% Initialize vars for the parfor loop:
 Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
+g_att = zeros(60,(en-or)/1000*Fs+1,length(S));
+g_unatt = zeros(60,(en-or)/1000*Fs+1,length(S));
 
-g_att = zeros(60,en/1000*Fs+1,length(S));
-g_unatt = zeros(60,en/1000*Fs+1,length(S));
 % FIRST, WE TRAIN THE DECODERS (FOR UNSHIFTED STIM/RESP)
 parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
     addr = S(j).code_no;
@@ -120,13 +122,11 @@ g_unatt = mean(g_unatt,3);
 
 for sh = 1:length(shift_sec)
     
-    % FOR/PARFOR
-    parfor j = 1:30 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ATTENTION!
+    parfor j = 1:length(S) % FOR/PARFOR
   
         start = round(S(j).latency);
-        fin = round(start + 30*EEG.srate); % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ATTENTION!
+        fin = round(start + len_win_classified*EEG.srate);
         
-
         if compute_envelope == 1
             stimLeft = abs(hilbert(EEG.data(ch_left, start:fin)))';
             stimRight = abs(hilbert(EEG.data(ch_right, start:fin)))';
@@ -136,14 +136,13 @@ for sh = 1:length(shift_sec)
         end
 
         try
-            stimLeft = circshift(stimLeft, Fs*shift_sec(sh)); % !!!!!??? ??????, ??? ???????!!!!!!
-            stimRight = circshift(stimRight, Fs*shift_sec(sh));% !!!!!??? ??????, ??? ???????!!!!!!
+            stimLeft = circshift(stimLeft, Fs*shift_sec(sh)); 
+            stimRight = circshift(stimRight, Fs*shift_sec(sh));
         catch
             disp(['sh = ' num2str(sh)])
         end
 
         response = EEG.data(1:60, start:fin)';
-
 
 
         [~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en, Lcon);
