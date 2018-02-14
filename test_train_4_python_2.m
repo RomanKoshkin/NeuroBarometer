@@ -1,5 +1,5 @@
 clear
-load('KOS_1+2_80Hz.mat.mat')
+load('KOS_DAS_80Hz.mat')
 load('output.mat') % stores a lot of things, including the two decoders.
 clearvars -except EEG S
 
@@ -22,4 +22,4 @@ for i = 1:length({S.type})
         fin = start + 10 * EEG.srate-1;    
     end
 end
-save('EEG_data_KOS_1+2.mat', 'X', 'Y')
+save('EEG_big.mat', 'X', 'Y')

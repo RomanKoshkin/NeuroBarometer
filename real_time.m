@@ -1,6 +1,6 @@
 % run this file AFTER you run stim_reconst_2.m
 clear
-load('EEG.mat')
+load('KOS_DAS_80Hz.mat')
 load('output.mat') % stores a lot of things, including the two decoders.
 %%
 

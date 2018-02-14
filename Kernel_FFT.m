@@ -1,13 +1,13 @@
 % run this file AFTER you run stim_reconst_2.m
 clear
-load('EEG.mat')
+load('KOS_DAS_80Hz.mat')
 load('output.mat') % stores a lot of things, including the two decoders.
 
 Fs = EEG.srate;
 T = 1/Fs;             % Sampling period       
 L = size(g_att,2);    % Length of signal
 
-for channel = 30:32
+for channel = [5 16]
     X = g_att(channel,:)';
     Y = fft(X);
 
@@ -26,7 +26,7 @@ for channel = 30:32
     ylabel('|P1(f)|')
 end
     
-for channel = 30:32
+for channel = [5 16]
     X = g_unatt(channel,:)';
     Y = fft(X);
 

@@ -2,6 +2,7 @@
 % efficient.
 
 % load('KOS_1+2_80Hz.mat')
+
 load('KOS_DAS_80Hz.mat')
 clearvars -except EEG
 tic
