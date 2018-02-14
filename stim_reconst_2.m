@@ -1,7 +1,8 @@
 % Compared to stim_reconst_1_PARFOR.m, this code is about twice as
 % efficient.
 
-load('EEG.mat')
+% load('KOS_1+2_80Hz.mat')
+load('KOS_DAS_80Hz.mat')
 clearvars -except EEG
 tic
 %% define model parameters:
@@ -10,7 +11,7 @@ len_win_classified = 30;
 % shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 % shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-shift_sec = [-1 0];
+shift_sec = [-1 0 1];
 
 compute_envelope = 1;
 % lags start and end:
@@ -18,7 +19,7 @@ or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
 en = 500;
 
 % range of events in the EEG.event struct
-events = 5:64; % event ordinal numbers in the 
+events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
 
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
@@ -71,7 +72,7 @@ parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
     addr = S(j).code_no;
     tic
     start = round(EEG.event(addr).latency);
-    fin = round(EEG.event(addr+1).latency);
+    fin = round(start + len_win_classified*EEG.srate);
 
 
     if compute_envelope == 1

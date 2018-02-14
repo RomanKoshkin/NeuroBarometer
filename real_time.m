@@ -42,7 +42,7 @@ load('output2.mat')
 figure; 
 subplot(2,1,1)
 Fs = EEG.srate;
-plot(1:1269,a_r_left,1:1269, a_r_right, 'LineWidth', 0.5)
+plot(1:length(a_r_left),a_r_left,1:length(a_r_right), a_r_right, 'LineWidth', 0.5)
 times = (round(1:Fs*1:length(EEG.data)-Fs*30)-1)/Fs;
 ax = gca;
 ax.XTick = linspace(0,length(times),10);
@@ -73,7 +73,7 @@ end
 % now the same, but using the UNattended decoders:
 subplot(2,1,2)
 Fs = EEG.srate;
-plot(1:1269,u_r_left,1:1269, u_r_right, 'LineWidth', 0.5)
+plot(1:length(u_r_left),u_r_left,1:length(u_r_right), u_r_right, 'LineWidth', 0.5)
 times = (round(1:Fs*1:length(EEG.data)-Fs*30)-1)/Fs;
 ax = gca;
 ax.XTick = linspace(0,length(times),10);
