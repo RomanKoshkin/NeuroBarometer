@@ -3,7 +3,7 @@
 
 % load('KOS_1+2_80Hz.mat')
 
-load('KOS_DAS_80Hz.mat')
+load('KOS_DAS_80Hz.mat') % DOWNLOAD HERE: https://drive.google.com/open?id=1-hwYUvl5iKi9DZGY2QusjM4cmL3EWh0C
 clearvars -except EEG
 tic
 %% define model parameters:
@@ -12,15 +12,18 @@ len_win_classified = 30;
 % shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 % shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-shift_sec = [-1 0 1];
-
+shift_sec = [0];
+train_test_split = .80;
 compute_envelope = 1;
+
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 50;
+en = 500;
 
 % range of events in the EEG.event struct
 events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+
+
 
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
@@ -59,18 +62,26 @@ end
 S = S(~cellfun('isempty',{S.code_no}));
 
 
+% split our windows into training and testing based on our train/test split
+code_nos = [S.code_no];
+train_events = randsample(code_nos, round(length([S.code_no])*train_test_split));
+test_events = code_nos(~ismember(code_nos, train_events))
+% test_events = train_events;
+
+
 % if you wanna get a return from the a parfor loop, you need to declare the
 % variables, with the RIGHT SIZES!!!. Parfor works like a function. It only
 % returns what has been declared before. If you define a var inside a
 % parfor loop, it is never returned.
 % Initialize vars for the parfor loop:
 Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
-g_att = zeros(60,(en-or)/1000*Fs+1,length(S));
-g_unatt = zeros(60,(en-or)/1000*Fs+1,length(S));
+g_att = zeros(60,(en-or)/1000*Fs+1, length(train_events));
+g_unatt = zeros(60,(en-or)/1000*Fs+1,length(train_events));
+
 
 % FIRST, WE TRAIN THE DECODERS (FOR UNSHIFTED STIM/RESP)
-parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
-    addr = S(j).code_no;
+parfor j = 1:length(train_events) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
+    addr = train_events(j);
     tic
     start = round(EEG.event(addr).latency);
     fin = round(start + len_win_classified*EEG.srate);
@@ -87,7 +98,7 @@ parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
     response = EEG.data(1:60, start:fin)';
 
     [wLeft,t, ~] = mTRFtrain(stimLeft, response, Fs, 1, or, en, LAMBDA);
-    if strcmp (S(j).type, 'left') == 1
+    if strcmp (S(find(ismember([S.code_no], addr))).type, 'left') == 1
         % g_att = cat(3, g_att, wLeft);
         g_att(:,:,j) = wLeft;
     else
@@ -97,7 +108,7 @@ parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
 
 
     [wRight,t, ~] = mTRFtrain(stimRight, response, Fs, 1, or, en, LAMBDA);
-    if strcmp (S(j).type, 'right') == 1
+    if strcmp (S(find(ismember([S.code_no], addr))).type, 'right') == 1
         % g_att = cat(3, g_att, wRight);
         g_att(:,:,j) = wRight;
     else
@@ -117,16 +128,17 @@ end
 temp = num2cell([EEG.event([S.code_no]).latency]);
 [S.latency] = temp{:};
     
-% average the decoders over all the 30-second-long trials:
+% average the decoders over all the TRAINING 30-second-long trials:
 g_att = mean(g_att,3);
 g_unatt = mean(g_unatt,3);
 
 
 for sh = 1:length(shift_sec)
     
-    parfor j = 1:length(S) % FOR/PARFOR
+    for j = 1:length(test_events) % FOR/PARFOR
   
-        start = round(S(j).latency);
+        addr = test_events(j);
+        start = round(EEG.event(addr).latency);
         fin = round(start + len_win_classified*EEG.srate);
         
         if compute_envelope == 1
@@ -146,53 +158,61 @@ for sh = 1:length(shift_sec)
 
         response = EEG.data(1:60, start:fin)';
 
+        s_addr = find(ismember([S.code_no], addr));
+        [~, S(s_addr).a_r_left, ~, S(s_addr).a_MSE_left] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en, Lcon);
+        [~, S(s_addr).a_r_right, ~, S(s_addr).a_MSE_right] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en, Lcon);
 
-        [~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en, Lcon);
-        [~, S(j).a_r_right, ~, S(j).a_MSE_right] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en, Lcon);
-
-        [~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en, Lcon);
-        [~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en, Lcon);
+        [~, S(s_addr).u_r_left, ~, S(s_addr).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en, Lcon);
+        [~, S(s_addr).u_r_right, ~, S(s_addr).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en, Lcon);
         disp(['parallel mode, trial ' num2str(j) ' Shift ' num2str(shift_sec(sh))])
     end
 
-    for j = 1:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).a_r_left > S(j).a_r_right...
+    for j = 1:length(test_events)
+        addr = test_events(j);
+        s_addr = find(ismember([S.code_no], addr));
+        if strcmp(S(s_addr).type,'left') == 1 & S(s_addr).a_r_left > S(s_addr).a_r_right...
                 ||...
-                strcmp(S(j).type,'right') == 1 & S(j).a_r_left < S(j).a_r_right
-            S(j).a_correct = 1;
+                strcmp(S(s_addr).type,'right') == 1 & S(s_addr).a_r_left < S(s_addr).a_r_right
+            S(s_addr).a_correct = 1;
         else
-            S(j).a_correct = 0;
+            S(s_addr).a_correct = 0;
         end
     end
-    for j = 1:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left > S(j).u_r_right...
+    for j = 1:length(test_events)
+        addr = test_events(j);
+        s_addr = find(ismember([S.code_no], addr));
+        if strcmp(S(s_addr).type,'left') == 1 & S(s_addr).u_r_left > S(s_addr).u_r_right...
                 ||...
-                strcmp(S(j).type,'right') == 1 & S(j).u_r_left < S(j).u_r_right
-            S(j).u_correct = 1;
+                strcmp(S(s_addr).type,'right') == 1 & S(s_addr).u_r_left < S(s_addr).u_r_right
+            S(s_addr).u_correct = 1;
         else
-            S(j).u_correct = 0;
+            S(s_addr).u_correct = 0;
         end
     end
     a_accuracy(sh) = mean([S(1:length(S)).a_correct]);
     u_accuracy(sh) = mean([S(1:length(S)).u_correct]);
 
-    for j = 1:length(S)
-        if strcmp(S(j).type,'right') == 1
-            S(j).a_r_att = S(j).a_r_right;
-            S(j).a_r_unatt = S(j).a_r_left;
+    for j = 1:length(test_events)
+        addr = test_events(j);
+        s_addr = find(ismember([S.code_no], addr));
+        if strcmp(S(s_addr).type,'right') == 1
+            S(s_addr).a_r_att = S(s_addr).a_r_right;
+            S(s_addr).a_r_unatt = S(s_addr).a_r_left;
         else
-            S(j).a_r_att = S(j).a_r_left;
-            S(j).a_r_unatt = S(j).a_r_right;
+            S(s_addr).a_r_att = S(s_addr).a_r_left;
+            S(s_addr).a_r_unatt = S(s_addr).a_r_right;
         end
     end
 
-    for j = 1:length(S)
-        if strcmp(S(j).type,'right') == 1
-            S(j).u_r_att = S(j).u_r_right;
-            S(j).u_r_unatt = S(j).u_r_left;
+    for j = 1:length(test_events)
+        addr = test_events(j);
+        s_addr = find(ismember([S.code_no], addr));
+        if strcmp(S(s_addr).type,'right') == 1
+            S(s_addr).u_r_att = S(s_addr).u_r_right;
+            S(s_addr).u_r_unatt = S(s_addr).u_r_left;
         else
-            S(j).u_r_att = S(j).u_r_left;
-            S(j).u_r_unatt = S(j).u_r_right;
+            S(s_addr).u_r_att = S(s_addr).u_r_left;
+            S(s_addr).u_r_unatt = S(s_addr).u_r_right;
         end
     end
 
