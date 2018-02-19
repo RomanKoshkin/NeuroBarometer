@@ -11,25 +11,24 @@ LAMBDA = 0.03;
 len_win_classified = 30;
 % shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-% shift_sec = [0];
+% shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
+shift_sec = [0];
 
 compute_envelope = 1;
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 500;
+en = 50;
 
 % range of events in the EEG.event struct
-events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
-% events = [5:64]; % event ordinal numbers in the  
+% events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+events = [5:64]; % event ordinal numbers in the  
 
 % initialize an empty struct array with ALL the necessary fields.
 % Otherwise the PARFOR loops won't run.
 S = struct('type', [], 'code_no', [], 'latency', [],...
-    'R_LDec_LCh', [], 'R_RDec_LCh', [], 'R_LDec_RCh', [], 'R_RDec_RCh', [],...
-    'MSE_LDec_LCh', [], 'MSE_RDec_LCh', [], 'MSE_LDec_RCh', [], 'MSE_RDec_RCh', [],...
-    'a_accuracy', [], 'u_accuracy', [],...
-    'r_Adec_Ach', [], 'r_Adec_Uch', [], 'r_Udec_Ach', [], 'r_Udec_Uch', []);
+    'R_Att', [], 'R_Unatt', [],...
+    'MSE_Att', [], 'MSE_Unatt', [],...
+    'a_accuracy', [], 'u_accuracy', []);
 
 ch_left = find(ismember({EEG.chanlocs.labels}, 'Left_AUX') == 1);
 ch_right = find(ismember({EEG.chanlocs.labels},'Right_AUX') == 1);
@@ -69,9 +68,7 @@ S = S(~cellfun('isempty',{S.code_no}));
 % parfor loop, it is never returned.
 % Initialize vars for the parfor loop:
 
-% Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
-% g_att = zeros(60,(en-or)/1000*Fs+1,length(S));
-% g_unatt = zeros(60,(en-or)/1000*Fs+1,length(S));
+Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
 
 % load onset latencies into S.latency:
 temp = num2cell([EEG.event([S.code_no]).latency]);
@@ -132,41 +129,28 @@ for sh = 1:length(shift_sec)
         end
         
         response = EEG.data(1:60, start:fin)';
-   
-        [~, S(j).R_LDec_LCh, ~, S(j).MSE_LDec_LCh] = mTRFpredict(stimLeft, response, wLeft, Fs, 1, or, en, Lcon); % response ???
-        [~, S(j).R_RDec_RCh, ~, S(j).MSE_RDec_RCh] = mTRFpredict(stimRight, response, wRight, Fs, 1, or, en, Lcon);
-
-        [~, S(j).R_RDec_LCh, ~, S(j).MSE_RDec_LCh] = mTRFpredict(stimLeft, response, wRight, Fs, 1, or, en, Lcon);
-        [~, S(j).R_LDec_RCh, ~, S(j).MSE_LDec_RCh] = mTRFpredict(stimRight, response, wLeft, Fs, 1, or, en, Lcon);
         
         if strcmp(S(j).type, 'right') == 1
-            S(j).r_Adec_Ach = S(j).R_RDec_RCh;
-            S(j).r_Adec_Uch = S(j).R_RDec_LCh;
-            S(j).r_Udec_Ach = S(j).R_LDec_RCh;
-            S(j).r_Udec_Uch = S(j).R_LDec_LCh;
+            [~, S(j).R_Att, ~, S(j).MSE_Att] = mTRFpredict(stimRight, response, wRight, Fs, 1, or, en, Lcon);
+            [~, S(j).R_Unatt, ~, S(j).MSE_Unatt] = mTRFpredict(stimLeft, response, wRight, Fs, 1, or, en, Lcon);
         else
-            S(j).r_Adec_Ach = S(j).R_LDec_LCh;
-            S(j).r_Adec_Uch = S(j).R_LDec_RCh;
-            S(j).r_Udec_Ach = S(j).R_RDec_LCh;
-            S(j).r_Udec_Uch = S(j).R_RDec_RCh;
+            [~, S(j).R_Att, ~, S(j).MSE_Att] = mTRFpredict(stimLeft, response, wLeft, Fs, 1, or, en, Lcon);
+            [~, S(j).R_Unatt, ~, S(j).MSE_Unatt] = mTRFpredict(stimRight, response, wLeft, Fs, 1, or, en, Lcon);
         end
+        
         
         disp(['parallel mode, trial ' num2str(j) ' Shift ' num2str(shift_sec(sh))])
     end
     
     % compute accuracy:
-    a_accuracy_tmp = num2cell(arrayfun(@(x) gt(x,0), [S.r_Adec_Ach]-[S.r_Adec_Uch]));
+    a_accuracy_tmp = num2cell(arrayfun(@(x) gt(x,0), [S.R_Att]-[S.R_Unatt]));
     [S.a_accuracy] = a_accuracy_tmp{:};
-    u_accuracy_tmp = num2cell(arrayfun(@(x) gt(x,0), [S.r_Udec_Uch]-[S.r_Udec_Ach]));
-    [S.u_accuracy] = u_accuracy_tmp{:};
     
     a_accuracy(sh) = mean(cellfun(@double, a_accuracy_tmp));
-    u_accuracy(sh) = mean(cellfun(@double, u_accuracy_tmp));
 
     
     figure
-    subplot(1,2,1)
-    scatter([S.r_Adec_Ach], [S.r_Adec_Uch])
+    scatter([S.R_Att], [S.R_Unatt])
     ax = gca; ax.FontSize = 14;
     title (['ATTended decoder accuracy ' num2str(a_accuracy(sh)) ', shift = ' num2str(shift_sec(sh))])
     xlabel ('r_{attended chan}', 'FontSize', 20)
@@ -176,34 +160,22 @@ for sh = 1:length(shift_sec)
     pbaspect([1 1 1])
     ax.YLim = [-0.1 0.25];
     ax.XLim = [-0.1 0.25];
-
-    subplot(1,2,2)
-    scatter([S.r_Udec_Ach], [S.r_Udec_Uch])
-    ax = gca; ax.FontSize = 14;
-    title (['UNattended decoder accuracy ' num2str(u_accuracy(sh)) ', shift = ' num2str(shift_sec(sh))])
-    xlabel ('r_{attended chan}', 'FontSize', 20)
-    ylabel ('r_{unattended chan}', 'FontSize', 20)
-    grid on
-    refline(1,0)
-    pbaspect([1 1 1])
-    ax.YLim = [-0.1 0.25];
-    ax.XLim = [-0.1 0.25];
-    
-    mu_Ratt(sh) = mean([S.r_Adec_Ach]);
-    SEM_Ratt(sh) = std([S.r_Adec_Ach])/sqrt(length([S.r_Adec_Ach]));
-    mu_Runatt(sh) = mean([S.r_Udec_Ach]);
-    SEM_Runatt(sh) = std([S.r_Udec_Ach])/sqrt(length([S.r_Udec_Ach]));
+  
+    mu_Ratt(sh) = mean([S.R_Att]);
+    SEM_Ratt(sh) = std([S.R_Att])/sqrt(length([S.R_Att]));
+    mu_Runatt(sh) = mean([S.R_Unatt]);
+    SEM_Runatt(sh) = std([S.R_Unatt])/sqrt(length([S.R_Unatt]));
 end
 
 %%
 figure('units','normalized','outerposition',[0 0 1 1])
 subplot(1,2,1)
-plot(1:length(shift_sec), a_accuracy, 1:length(shift_sec), u_accuracy, 'LineWidth', 3)
+plot(1:length(shift_sec), a_accuracy, 'LineWidth', 3)
 ax = gca;
 ax.XTick = 1:length(shift_sec);
 ax.XTickLabels = {shift_sec};
 title(['Filtered/UNReferenced, Kernel = ' num2str(en) ' \lambda = ' num2str(LAMBDA)], 'FontSize', 14)
-legend({'attended accuracy', 'unattended accuracy'}, 'FontSize', 12)
+legend({'attended accuracy'}, 'FontSize', 12)
 ylabel ('Classification accuracy', 'FontSize', 16)
 xlabel ('Stimulus shift relative to real time', 'FontSize', 16)
 grid on
@@ -216,10 +188,10 @@ ax = gca;
 ax.XTick = 1:length(shift_sec);
 ax.XTickLabels = {shift_sec};
 title(['Correlation vs. Time Shift, Kernel = ' num2str(en) ' \lambda = ' num2str(LAMBDA) ' (bars show 95%-CIs (1.98*SEM))'], 'FontSize', 14)
-legend({'R_{attended}', 'R_{unattended}'}, 'FontSize', 12)
+% legend({'R_{attended}', 'R_{unattended}'}, 'FontSize', 12)
 ylabel ('Pearsons R', 'FontSize', 16)
 xlabel ('Stimulus shift relative to real time', 'FontSize', 16)
 grid on
-save('output.mat', 'S', 'g_att', 'g_unatt', 'en', 'or', 'shift_sec', 'LAMBDA', 'mu_Ratt', 'mu_Runatt', 'SEM_Ratt', 'SEM_Runatt', 'a_accuracy', 'u_accuracy', 'Lcon')
+save('output.mat', 'S', 'en', 'or', 'shift_sec', 'LAMBDA', 'mu_Ratt', 'mu_Runatt', 'SEM_Ratt', 'SEM_Runatt', 'a_accuracy', 'Lcon')
 toc
 % now run real_time.m

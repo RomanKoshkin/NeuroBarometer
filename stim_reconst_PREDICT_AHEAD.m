@@ -70,7 +70,7 @@ g_att = zeros(60,(en-or)/1000*Fs+1,length(S));
 g_unatt = zeros(60,(en-or)/1000*Fs+1,length(S));
 
 % FIRST, WE TRAIN THE DECODERS (FOR UNSHIFTED STIM/RESP)
-parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
+for j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
     addr = S(j).code_no;
     tic
     start = round(EEG.event(addr).latency);
