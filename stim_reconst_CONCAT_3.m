@@ -9,7 +9,6 @@ tic
 %% define model parameters:
 LAMBDA = 0.03;
 len_win_classified = 30;
-decoder_delay = 0;
 % shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 % shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
@@ -21,12 +20,16 @@ or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
 en = 500;
 
 % range of events in the EEG.event struct
-events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+% events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+events = [5:64]; % event ordinal numbers in the  
 
-% initialize an empty struct array to store results:
+% initialize an empty struct array with ALL the necessary fields.
+% Otherwise the PARFOR loops won't run.
 S = struct('type', [], 'code_no', [], 'latency', [],...
     'a_r_left', [], 'u_r_left', [], 'a_r_right', [], 'u_r_right', [],...
     'a_MSE_left', [], 'u_MSE_left', [], 'a_MSE_right', '?', 'u_MSE_right', []);
+
+
 ch_left = find(ismember({EEG.chanlocs.labels}, 'Left_AUX') == 1);
 ch_right = find(ismember({EEG.chanlocs.labels},'Right_AUX') == 1);
 Fs = EEG.srate;
@@ -58,70 +61,53 @@ end
 
 % get rid of empty rows:
 S = S(~cellfun('isempty',{S.code_no}));
-
-
+%%
 % if you wanna get a return from the a parfor loop, you need to declare the
 % variables, with the RIGHT SIZES!!!. Parfor works like a function. It only
 % returns what has been declared before. If you define a var inside a
 % parfor loop, it is never returned.
 % Initialize vars for the parfor loop:
+
 Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
-g_att = zeros(60,(en-or)/1000*Fs+1,length(S));
-g_unatt = zeros(60,(en-or)/1000*Fs+1,length(S));
-
-% FIRST, WE TRAIN THE DECODERS (FOR UNSHIFTED STIM/RESP)
-parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
-    addr = S(j).code_no;
-    tic
-    start = round(EEG.event(addr).latency);
-    fin = round(start + len_win_classified*EEG.srate);
-
-
-    if compute_envelope == 1
-        stimLeft = abs(hilbert(EEG.data(ch_left, start:fin)))';
-        stimRight = abs(hilbert(EEG.data(ch_right, start:fin)))';
-    else
-        stimLeft = EEG.data(ch_left, start:fin)';
-        stimRight = EEG.data(ch_right, start:fin)';
-    end
-
-    response = EEG.data(1:60, start:fin)';
-
-    [wLeft,t, ~] = mTRFtrain(stimLeft, response, Fs, 1, or, en, LAMBDA);
-    if strcmp (S(j).type, 'left') == 1
-        % g_att = cat(3, g_att, wLeft);
-        g_att(:,:,j) = wLeft;
-    else
-        % g_unatt = cat(3, g_unatt, wLeft);
-        g_unatt(:,:,j) = wLeft;
-    end
-
-
-    [wRight,t, ~] = mTRFtrain(stimRight, response, Fs, 1, or, en, LAMBDA);
-    if strcmp (S(j).type, 'right') == 1
-        % g_att = cat(3, g_att, wRight);
-        g_att(:,:,j) = wRight;
-    else
-        % g_unatt = cat(3, g_unatt, wRight);
-        g_unatt(:,:,j) = wRight;
-    end
-
-    % report progress:
-    elapsed_time = toc;
-    disp(['Computing decoder from trial:' num2str(j)...
-                 ' seconds'...
-                ' Kernel length: ' num2str(en) ' Elapsed: '...
-                num2str(elapsed_time)])
-end
 
 % load onset latencies into S.latency:
 temp = num2cell([EEG.event([S.code_no]).latency]);
 [S.latency] = temp{:};
-    
+
+%% now split the data into two large continuous subsets (attend right, attend left)
+att_right = [S(find(ismember({S.type}, 'right'))).code_no];
+att_left = [S(find(ismember({S.type}, 'left'))).code_no];
+
+stimAtt = [];
+stimUnAtt = [];
+response = [];
+
+for i = 1:length(S)
+    start = round(EEG.event(i).latency);
+    fin = start + 30*EEG.srate-1;
+    response = cat(2, response, EEG.data(1:60, start:fin));
+    if strcmp(S(i).type, 'right')==1
+        stimAtt = cat(2, stimAtt, EEG.data(ch_right, start:fin));
+        stimUnAtt = cat(2, stimUnAtt, EEG.data(ch_left, start:fin));
+    else
+        stimAtt = cat(2, stimAtt, EEG.data(ch_left, start:fin));
+        stimUnAtt = cat(2, stimUnAtt, EEG.data(ch_right, start:fin));
+    end
+end
+
+response = response';
+stimAtt = stimAtt';
+stimUnAtt = stimUnAtt';
+
+% and find the decoders on these large subsets:
+[g_att,t, ~] = mTRFtrain(stimAtt, response, Fs, 1, or, en, LAMBDA);
+[g_unatt,t, ~] = mTRFtrain(stimUnAtt, response, Fs, 1, or, en, LAMBDA);
+
+
 
 for sh = 1:length(shift_sec)
     
-    for j = 1+decoder_delay:length(S) % FOR/PARFOR
+    parfor j = 1:length(S) % FOR/PARFOR
   
         start = round(S(j).latency);
         fin = round(start + len_win_classified*EEG.srate);
@@ -144,15 +130,15 @@ for sh = 1:length(shift_sec)
         response = EEG.data(1:60, start:fin)';
 
 
-        [~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, g_att(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
-        [~, S(j).a_r_right, ~, S(j).a_MSE_right] = mTRFpredict(stimRight, response, g_att(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
+        [~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en, Lcon);
+        [~, S(j).a_r_right, ~, S(j).a_MSE_right] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en, Lcon);
 
-        [~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
-        [~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
+        [~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en, Lcon);
+        [~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en, Lcon);
         disp(['parallel mode, trial ' num2str(j) ' Shift ' num2str(shift_sec(sh))])
     end
 
-    for j = 2:length(S)
+    for j = 1:length(S)
         if strcmp(S(j).type,'left') == 1 & S(j).a_r_left > S(j).a_r_right...
                 ||...
                 strcmp(S(j).type,'right') == 1 & S(j).a_r_left < S(j).a_r_right
@@ -161,10 +147,10 @@ for sh = 1:length(shift_sec)
             S(j).a_correct = 0;
         end
     end
-    for j = 2:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left < S(j).u_r_right...
+    for j = 1:length(S)
+        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left > S(j).u_r_right...
                 ||...
-                strcmp(S(j).type,'right') == 1 & S(j).u_r_left > S(j).u_r_right
+                strcmp(S(j).type,'right') == 1 & S(j).u_r_left < S(j).u_r_right
             S(j).u_correct = 1;
         else
             S(j).u_correct = 0;
@@ -173,7 +159,7 @@ for sh = 1:length(shift_sec)
     a_accuracy(sh) = mean([S(1:length(S)).a_correct]);
     u_accuracy(sh) = mean([S(1:length(S)).u_correct]);
 
-    for j = 2:length(S)
+    for j = 1:length(S)
         if strcmp(S(j).type,'right') == 1
             S(j).a_r_att = S(j).a_r_right;
             S(j).a_r_unatt = S(j).a_r_left;
@@ -183,7 +169,7 @@ for sh = 1:length(shift_sec)
         end
     end
 
-    for j = 2:length(S)
+    for j = 1:length(S)
         if strcmp(S(j).type,'right') == 1
             S(j).u_r_att = S(j).u_r_right;
             S(j).u_r_unatt = S(j).u_r_left;
@@ -252,24 +238,3 @@ grid on
 save('output.mat', 'S', 'g_att', 'g_unatt', 'en', 'or', 'shift_sec', 'LAMBDA', 'mu_Ratt', 'mu_Runatt', 'SEM_Ratt', 'SEM_Runatt', 'a_accuracy', 'u_accuracy', 'Lcon')
 toc
 % now run real_time.m
-%%
-error('afd')
-
-[wLeft,t, ~] = mTRFtrain(stimLeft, response, Fs, 1, or, en, LAMBDA);
-[wRight,t, ~] = mTRFtrain(stimRight, response, Fs, 1, or, en, LAMBDA);
-
-[~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, wLeft, Fs, 1, or, en, Lcon);
-[~, S(j).a_r_right, ~, S(j).a_MSE_right] = mTRFpredict(stimRight, response, wRight, Fs, 1, or, en, Lcon);
-
-[~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, wRight, Fs, 1, or, en, Lcon);
-[~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, wLeft, Fs, 1, or, en, Lcon);
-
-
-S(j).type
-disp([num2str(S(j).a_r_left) ' ????? ????????? ????? ?????, ??????? ', S(j).type])
-
-disp([num2str(S(j).a_r_right) ' ?????? ????????? ?????? ?????, ??????? ', S(j).type])
-
-disp([num2str(S(j).u_r_left)   ' ?????? ????????? ????? ?????, ??????? ', S(j).type])
-
-disp([num2str(S(j).u_r_right)     ' ????? ????????? ?????? ?????, ??????? ', S(j).type])
