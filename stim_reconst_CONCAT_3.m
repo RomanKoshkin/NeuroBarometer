@@ -20,8 +20,8 @@ or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
 en = 500;
 
 % range of events in the EEG.event struct
-% events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
-events = [5:64]; % event ordinal numbers in the  
+events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+% events = [5:64]; % event ordinal numbers in the  
 
 % initialize an empty struct array with ALL the necessary fields.
 % Otherwise the PARFOR loops won't run.
