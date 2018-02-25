@@ -17,7 +17,7 @@ shift_sec = [0];
 compute_envelope = 1;
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 500;
+en = 300;
 
 % range of events in the EEG.event struct
 events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
@@ -148,9 +148,9 @@ for sh = 1:length(shift_sec)
         end
     end
     for j = 1:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left > S(j).u_r_right...
+        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left < S(j).u_r_right...
                 ||...
-                strcmp(S(j).type,'right') == 1 & S(j).u_r_left < S(j).u_r_right
+                strcmp(S(j).type,'right') == 1 & S(j).u_r_left > S(j).u_r_right
             S(j).u_correct = 1;
         else
             S(j).u_correct = 0;
@@ -206,8 +206,8 @@ for sh = 1:length(shift_sec)
     
     mu_Ratt(sh) = mean([S.a_r_att]);
     SEM_Ratt(sh) = std([S.a_r_att])/sqrt(length([S.a_r_att]));
-    mu_Runatt(sh) = mean([S.u_r_att]);
-    SEM_Runatt(sh) = std([S.u_r_att])/sqrt(length([S.u_r_att]));
+    mu_Runatt(sh) = mean([S.u_r_unatt]);
+    SEM_Runatt(sh) = std([S.u_r_unatt])/sqrt(length([S.u_r_unatt]));
 end
 
 %%

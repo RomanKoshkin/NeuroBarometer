@@ -1,31 +1,29 @@
 % Compared to stim_reconst_1_PARFOR.m, this code is about twice as
 % efficient.
 
-% load('KOS_1+2_80Hz.mat')
-
 load('KOS_DAS_80Hz.mat')
 clearvars -except EEG
 tic
 %% define model parameters:
 LAMBDA = 0.03;
 len_win_classified = 30;
-decoder_delay = 0;
-shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
+% shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 % shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-shift_sec = [0];
+% shift_sec = [0];
 
 compute_envelope = 1;
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 200;
+en = 1000;
 
 % range of events in the EEG.event struct
+% events = [5:64, 75:134, 143:202, 211:299, 308:396, 405:493]; % event ordinal numbers in the  
 events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
-
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
     'a_r_left', [], 'u_r_left', [], 'a_r_right', [], 'u_r_right', [],...
+    'a_correct', [], 'u_correct', [], ...
     'a_MSE_left', [], 'u_MSE_left', [], 'a_MSE_right', '?', 'u_MSE_right', []);
 ch_left = find(ismember({EEG.chanlocs.labels}, 'Left_AUX') == 1);
 ch_right = find(ismember({EEG.chanlocs.labels},'Right_AUX') == 1);
@@ -118,10 +116,15 @@ end
 temp = num2cell([EEG.event([S.code_no]).latency]);
 [S.latency] = temp{:};
     
+% average the decoders over all the 30-second-long trials:
+g_att = mean(g_att,3);
+g_unatt = mean(g_unatt,3);
+
 
 for sh = 1:length(shift_sec)
     
-    parfor j = 1+decoder_delay:length(S) % FOR/PARFOR
+    % now use the average decoders to predict what's what: 
+    parfor j = 1:length(S) % FOR/PARFOR
   
         start = round(S(j).latency);
         fin = round(start + len_win_classified*EEG.srate);
@@ -144,89 +147,64 @@ for sh = 1:length(shift_sec)
         response = EEG.data(1:60, start:fin)';
 
 
-        [~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, g_att(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
-        [~, S(j).a_r_right, ~, S(j).a_MSE_right] = mTRFpredict(stimRight, response, g_att(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
+        [~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en, Lcon);
+        [~, S(j).a_r_right, ~, S(j).a_MSE_right] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en, Lcon);
 
-        [~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
-        [~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
+        [~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en, Lcon);
+        [~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en, Lcon);
         disp(['parallel mode, trial ' num2str(j) ' Shift ' num2str(shift_sec(sh))])
     end
 
-    for j = 2:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).a_r_left > S(j).a_r_right...
-                ||...
-                strcmp(S(j).type,'right') == 1 & S(j).a_r_left < S(j).a_r_right
-            S(j).a_correct = 1;
-        else
-            S(j).a_correct = 0;
-        end
-    end
-    for j = 2:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left < S(j).u_r_right...
-                ||...
-                strcmp(S(j).type,'right') == 1 & S(j).u_r_left > S(j).u_r_right
-            S(j).u_correct = 1;
-        else
-            S(j).u_correct = 0;
-        end
-    end
-    a_accuracy(sh) = mean([S(1:length(S)).a_correct]);
-    u_accuracy(sh) = mean([S(1:length(S)).u_correct]);
-
-    for j = 2:length(S)
+    % compute the accuracy of attended decoders:
+    for j = 1:length(S)
         if strcmp(S(j).type,'right') == 1
-            S(j).a_r_att = S(j).a_r_right;
-            S(j).a_r_unatt = S(j).a_r_left;
-        else
-            S(j).a_r_att = S(j).a_r_left;
-            S(j).a_r_unatt = S(j).a_r_right;
+            if S(j).a_r_right > S(j).a_r_left
+                S(j).a_correct = 1;
+            else
+                S(j).a_correct = 0;
+            end
+        end
+        if strcmp(S(j).type,'left') == 1
+            if S(j).a_r_left > S(j).a_r_right
+                S(j).a_correct = 1;
+            else
+                S(j).a_correct = 0;
+            end
         end
     end
-
-    for j = 2:length(S)
-        if strcmp(S(j).type,'right') == 1
-            S(j).u_r_att = S(j).u_r_right;
-            S(j).u_r_unatt = S(j).u_r_left;
-        else
-            S(j).u_r_att = S(j).u_r_left;
-            S(j).u_r_unatt = S(j).u_r_right;
-        end
-    end
-
-    figure
-    subplot(1,2,1)
-    scatter([S.a_r_att], [S.a_r_unatt])
-    ax = gca; ax.FontSize = 14;
-    title (['ATTended decoder accuracy ' num2str(a_accuracy(sh)) ', shift = ' num2str(shift_sec(sh))])
-    xlabel ('r_{attended}', 'FontSize', 20)
-    ylabel ('r_{unattended}', 'FontSize', 20)
-    grid on
-    refline(1,0)
-    pbaspect([1 1 1])
-    ax.YLim = [-0.1 0.25];
-    ax.XLim = [-0.1 0.25];
-
-    subplot(1,2,2)
-    scatter([S.u_r_att], [S.u_r_unatt])
-    ax = gca; ax.FontSize = 14;
-    title (['UNattended decoder accuracy ' num2str(u_accuracy(sh)) ', shift = ' num2str(shift_sec(sh))])
-    xlabel ('r_{attended}', 'FontSize', 20)
-    ylabel ('r_{unattended}', 'FontSize', 20)
-    grid on
-    refline(1,0)
-    pbaspect([1 1 1])
-    ax.YLim = [-0.1 0.25];
-    ax.XLim = [-0.1 0.25];
     
-    mu_Ratt(sh) = mean([S.a_r_att]);
-    SEM_Ratt(sh) = std([S.a_r_att])/sqrt(length([S.a_r_att]));
-    mu_Runatt(sh) = mean([S.u_r_att]);
-    SEM_Runatt(sh) = std([S.u_r_att])/sqrt(length([S.u_r_att]));
+    % compute the accuracy of UNattended decoders:
+    for j = 1:length(S)
+        if strcmp(S(j).type,'right') == 1
+            if S(j).u_r_right < S(j).u_r_left
+                S(j).u_correct = 1;
+            else
+                S(j).u_correct = 0;
+            end
+        end
+        if strcmp(S(j).type,'left') == 1
+            if S(j).u_r_left < S(j).u_r_right
+                S(j).u_correct = 1;
+            else
+                S(j).u_correct = 0;
+            end
+        end
+    end
+    
+    a_accuracy(sh) = mean([S.a_correct]);
+    u_accuracy(sh) = mean([S.u_correct]);
+    
+    % enter the direction as predicted by the ATTENDED mean decoder:
+    for i = 1:length(S)
+        if S(i).a_r_right>S(i).a_r_left
+            S(i).a_pred_dir = 'right';
+        else
+            S(i).a_pred_dir = 'left';
+        end
+    end
+
 end
 
-%%
-figure('units','normalized','outerposition',[0 0 1 1])
-subplot(1,2,1)
 plot(1:length(shift_sec), a_accuracy, 1:length(shift_sec), u_accuracy, 'LineWidth', 3)
 ax = gca;
 ax.XTick = 1:length(shift_sec);
@@ -237,18 +215,5 @@ ylabel ('Classification accuracy', 'FontSize', 16)
 xlabel ('Stimulus shift relative to real time', 'FontSize', 16)
 grid on
 
-subplot(1,2,2)
-errorbar(1:length(shift_sec), mu_Ratt, 1.98*SEM_Ratt, 'LineWidth', 3)
-hold on
-errorbar(1:length(shift_sec), mu_Runatt, 1.98*SEM_Runatt, 'LineWidth', 3)
-ax = gca;
-ax.XTick = 1:length(shift_sec);
-ax.XTickLabels = {shift_sec};
-title(['Correlation vs. Time Shift, Kernel = ' num2str(en) ' \lambda = ' num2str(LAMBDA) ' (bars show 95%-CIs (1.98*SEM))'], 'FontSize', 14)
-legend({'R_{attended}', 'R_{unattended}'}, 'FontSize', 12)
-ylabel ('Pearsons R', 'FontSize', 16)
-xlabel ('Stimulus shift relative to real time', 'FontSize', 16)
-grid on
-save('output.mat', 'S', 'g_att', 'g_unatt', 'en', 'or', 'shift_sec', 'LAMBDA', 'mu_Ratt', 'mu_Runatt', 'SEM_Ratt', 'SEM_Runatt', 'a_accuracy', 'u_accuracy', 'Lcon')
+save('output.mat', 'S', 'g_att', 'g_unatt', 'en', 'or', 'shift_sec', 'LAMBDA', 'a_accuracy', 'u_accuracy', 'Lcon')
 toc
-% now run real_time.m

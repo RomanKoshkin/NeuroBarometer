@@ -1,5 +1,6 @@
 clear
-load('KOS_DAS_80Hz.mat')
+% load('KOS_DAS_80Hz.mat')
+load('BIG.mat')
 load('output.mat') % stores a lot of things, including the two decoders.
 clearvars -except EEG S
 

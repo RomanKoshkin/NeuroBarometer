@@ -3,7 +3,7 @@
 
 % load('KOS_1+2_80Hz.mat')
 
-load('KOS_DAS_80Hz.mat')
+load('BIG.mat')
 clearvars -except EEG
 tic
 %% define model parameters:
@@ -11,17 +11,17 @@ LAMBDA = 0.03;
 len_win_classified = 30;
 % shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-% shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-shift_sec = [-1 0 1];
+shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
+% shift_sec = [0];
 
 compute_envelope = 1;
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 50;
+en = 500;
 
 % range of events in the EEG.event struct
-events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
-
+% events = [5:64, 75:134, 143:202, 211:299, 308:396, 405:493]; % event ordinal numbers in the  
+events = [5:64, 75:134, 143:202]%, 211:299, 308:396, 405:493]; % event ordinal numbers in the  
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
     'a_r_left', [], 'u_r_left', [], 'a_r_right', [], 'u_r_right', [],...
@@ -165,9 +165,9 @@ for sh = 1:length(shift_sec)
         end
     end
     for j = 1:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left > S(j).u_r_right...
+        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left < S(j).u_r_right...
                 ||...
-                strcmp(S(j).type,'right') == 1 & S(j).u_r_left < S(j).u_r_right
+                strcmp(S(j).type,'right') == 1 & S(j).u_r_left > S(j).u_r_right
             S(j).u_correct = 1;
         else
             S(j).u_correct = 0;
@@ -223,8 +223,8 @@ for sh = 1:length(shift_sec)
     
     mu_Ratt(sh) = mean([S.a_r_att]);
     SEM_Ratt(sh) = std([S.a_r_att])/sqrt(length([S.a_r_att]));
-    mu_Runatt(sh) = mean([S.u_r_att]);
-    SEM_Runatt(sh) = std([S.u_r_att])/sqrt(length([S.u_r_att]));
+    mu_Runatt(sh) = mean([S.u_r_unatt]);
+    SEM_Runatt(sh) = std([S.u_r_unatt])/sqrt(length([S.u_r_unatt]));
 end
 
 %%
