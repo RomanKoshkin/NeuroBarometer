@@ -15,11 +15,12 @@ shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of sti
 compute_envelope = 1;
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 1000;
+en = 500;
 
 % range of events in the EEG.event struct
 % events = [5:64, 75:134, 143:202, 211:299, 308:396, 405:493]; % event ordinal numbers in the  
-events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+% events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+events = [5:64];
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
     'a_r_left', [], 'u_r_left', [], 'a_r_right', [], 'u_r_right', [],...
