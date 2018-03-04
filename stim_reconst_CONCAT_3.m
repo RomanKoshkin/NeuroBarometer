@@ -9,9 +9,6 @@ tic
 %% define model parameters:
 LAMBDA = 0.03;
 len_win_classified = 30;
-% shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
-% shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
-% shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 shift_sec = [0];
 
 compute_envelope = 1;
@@ -20,8 +17,8 @@ or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
 en = 300;
 
 % range of events in the EEG.event struct
-events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
-% events = [5:64]; % event ordinal numbers in the  
+% events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+events = [5:64]; % event ordinal numbers in the  
 
 % initialize an empty struct array with ALL the necessary fields.
 % Otherwise the PARFOR loops won't run.
@@ -62,12 +59,6 @@ end
 % get rid of empty rows:
 S = S(~cellfun('isempty',{S.code_no}));
 %%
-% if you wanna get a return from the a parfor loop, you need to declare the
-% variables, with the RIGHT SIZES!!!. Parfor works like a function. It only
-% returns what has been declared before. If you define a var inside a
-% parfor loop, it is never returned.
-% Initialize vars for the parfor loop:
-
 Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
 
 % load onset latencies into S.latency:

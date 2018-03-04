@@ -21,7 +21,8 @@ or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
 en = 500;
 
 % range of events in the EEG.event struct
-events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+% events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+events = [5:64]; % event ordinal numbers in the  
 
 
 
@@ -79,7 +80,7 @@ g_att = zeros(60,(en-or)/1000*Fs+1, length(train_events));
 g_unatt = zeros(60,(en-or)/1000*Fs+1,length(train_events));
 
 
-% FIRST, WE TRAIN THE DECODERS (FOR UNSHIFTED STIM/RESP)
+% FIRST, WE TRAIN DECODERS (FOR UNSHIFTED STIM/RESP) ON TRAINING TRIALS:
 parfor j = 1:length(train_events) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
     addr = train_events(j);
     tic

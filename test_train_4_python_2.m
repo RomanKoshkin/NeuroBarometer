@@ -1,14 +1,16 @@
-clear
+% clear
 % load('KOS_DAS_80Hz.mat')
-load('BIG.mat')
-load('output.mat') % stores a lot of things, including the two decoders.
 clearvars -except EEG S
+load('BIG.mat')
+% load('output.mat') % stores a lot of things, including the two decoders.
+
 
 % data split:
 counter = 0;
 for i = 1:length({S.type})
     start = round(S(i).latency);
     fin = start + 10 * EEG.srate-1;
+
     while fin < S(i).latency + 30*EEG.srate
         counter = counter + 1;
         X(counter,:,:) = EEG.data(1:60,start:fin);
