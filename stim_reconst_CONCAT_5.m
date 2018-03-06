@@ -13,7 +13,7 @@ len_win_classified = 30;
 compute_envelope = 1;
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 200;
+en = 300;
 
 % range of events in the EEG.event struct
 % events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
