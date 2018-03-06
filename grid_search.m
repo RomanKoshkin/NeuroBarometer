@@ -11,7 +11,7 @@ function [a_suc, u_suc] = grid_search(lambda, l_win_clas, en, fa)
     LAMBDA = lambda;
     len_win_classified = l_win_clas;
 
-    train_test_split = 0 % set zero if you want the training and testing set to be the same
+    train_test_split = 0.8 % set zero if you want the training and testing set to be the same
 
     % lowpass filter design for the audio:
     compute_envelope = 1;

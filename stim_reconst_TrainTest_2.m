@@ -3,25 +3,28 @@
 
 % load('KOS_1+2_80Hz.mat')
 
-load('KOS_DAS_80Hz.mat')
+load('KOS_DAS_80Hz.mat') % DOWNLOAD HERE: https://drive.google.com/open?id=1-hwYUvl5iKi9DZGY2QusjM4cmL3EWh0C
 clearvars -except EEG
 tic
 %% define model parameters:
 LAMBDA = 0.03;
 len_win_classified = 30;
-decoder_delay = 0;
-shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
-shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
+% shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
+% shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 % shift_sec = [-0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
 shift_sec = [0];
-
+train_test_split = .75;
 compute_envelope = 1;
+
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 50;
+en = 1000;
 
 % range of events in the EEG.event struct
-events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+% events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
+events = [5:64]; % event ordinal numbers in the  
+
+
 
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
@@ -60,18 +63,26 @@ end
 S = S(~cellfun('isempty',{S.code_no}));
 
 
+% split our windows into training and testing based on our train/test split
+code_nos = [S.code_no];
+train_events = randsample(code_nos, round(length([S.code_no])*train_test_split));
+test_events = code_nos(~ismember(code_nos, train_events))
+% test_events = train_events;
+
+
 % if you wanna get a return from the a parfor loop, you need to declare the
 % variables, with the RIGHT SIZES!!!. Parfor works like a function. It only
 % returns what has been declared before. If you define a var inside a
 % parfor loop, it is never returned.
 % Initialize vars for the parfor loop:
 Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
-g_att = zeros(60,(en-or)/1000*Fs+1,length(S));
-g_unatt = zeros(60,(en-or)/1000*Fs+1,length(S));
+g_att = zeros(60,(en-or)/1000*Fs+1, length(train_events));
+g_unatt = zeros(60,(en-or)/1000*Fs+1,length(train_events));
 
-% FIRST, WE TRAIN THE DECODERS (FOR UNSHIFTED STIM/RESP)
-parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
-    addr = S(j).code_no;
+
+% FIRST, WE TRAIN DECODERS (FOR UNSHIFTED STIM/RESP) ON TRAINING TRIALS:
+parfor j = 1:length(train_events) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
+    addr = train_events(j);
     tic
     start = round(EEG.event(addr).latency);
     fin = round(start + len_win_classified*EEG.srate);
@@ -88,7 +99,7 @@ parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
     response = EEG.data(1:60, start:fin)';
 
     [wLeft,t, ~] = mTRFtrain(stimLeft, response, Fs, 1, or, en, LAMBDA);
-    if strcmp (S(j).type, 'left') == 1
+    if strcmp (S(find(ismember([S.code_no], addr))).type, 'left') == 1
         % g_att = cat(3, g_att, wLeft);
         g_att(:,:,j) = wLeft;
     else
@@ -98,7 +109,7 @@ parfor j = 1:length(S) % $$$$$$$$$$$$$$$$$$$$ CHOSE EITHER PARFOR OR FOR.
 
 
     [wRight,t, ~] = mTRFtrain(stimRight, response, Fs, 1, or, en, LAMBDA);
-    if strcmp (S(j).type, 'right') == 1
+    if strcmp (S(find(ismember([S.code_no], addr))).type, 'right') == 1
         % g_att = cat(3, g_att, wRight);
         g_att(:,:,j) = wRight;
     else
@@ -118,12 +129,17 @@ end
 temp = num2cell([EEG.event([S.code_no]).latency]);
 [S.latency] = temp{:};
     
+% average the decoders over all the TRAINING 30-second-long trials:
+g_att = mean(g_att,3);
+g_unatt = mean(g_unatt,3);
+
 
 for sh = 1:length(shift_sec)
     
-    parfor j = 1+decoder_delay:length(S) % FOR/PARFOR
+    for j = 1:length(test_events) % FOR/PARFOR
   
-        start = round(S(j).latency);
+        addr = test_events(j);
+        start = round(EEG.event(addr).latency);
         fin = round(start + len_win_classified*EEG.srate);
         
         if compute_envelope == 1
@@ -143,85 +159,64 @@ for sh = 1:length(shift_sec)
 
         response = EEG.data(1:60, start:fin)';
 
+        s_addr = find(ismember([S.code_no], addr));
+        [~, S(s_addr).a_r_left, ~, S(s_addr).a_MSE_left] = mTRFpredict(stimLeft, response, g_att, Fs, 1, or, en, Lcon);
+        [~, S(s_addr).a_r_right, ~, S(s_addr).a_MSE_right] = mTRFpredict(stimRight, response, g_att, Fs, 1, or, en, Lcon);
 
-        [~, S(j).a_r_left, ~, S(j).a_MSE_left] = mTRFpredict(stimLeft, response, g_att(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
-        [~, S(j).a_r_right, ~, S(j).a_MSE_right] = mTRFpredict(stimRight, response, g_att(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
-
-        [~, S(j).u_r_left, ~, S(j).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
-        [~, S(j).u_r_right, ~, S(j).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt(:,:,j-decoder_delay), Fs, 1, or, en, Lcon);
+        [~, S(s_addr).u_r_left, ~, S(s_addr).u_MSE_left] = mTRFpredict(stimLeft, response, g_unatt, Fs, 1, or, en, Lcon);
+        [~, S(s_addr).u_r_right, ~, S(s_addr).u_MSE_right] = mTRFpredict(stimRight, response, g_unatt, Fs, 1, or, en, Lcon);
         disp(['parallel mode, trial ' num2str(j) ' Shift ' num2str(shift_sec(sh))])
     end
 
-    for j = 2:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).a_r_left > S(j).a_r_right...
-                ||...
-                strcmp(S(j).type,'right') == 1 & S(j).a_r_left < S(j).a_r_right
-            S(j).a_correct = 1;
-        else
-            S(j).a_correct = 0;
-        end
-    end
-    for j = 2:length(S)
-        if strcmp(S(j).type,'left') == 1 & S(j).u_r_left < S(j).u_r_right...
-                ||...
-                strcmp(S(j).type,'right') == 1 & S(j).u_r_left > S(j).u_r_right
-            S(j).u_correct = 1;
-        else
-            S(j).u_correct = 0;
-        end
-    end
-    a_accuracy(sh) = mean([S(1:length(S)).a_correct]);
-    u_accuracy(sh) = mean([S(1:length(S)).u_correct]);
-
-    for j = 2:length(S)
+    % compute the accuracy of attended decoders:
+    for j = 1:length(S)
         if strcmp(S(j).type,'right') == 1
-            S(j).a_r_att = S(j).a_r_right;
-            S(j).a_r_unatt = S(j).a_r_left;
-        else
-            S(j).a_r_att = S(j).a_r_left;
-            S(j).a_r_unatt = S(j).a_r_right;
+            if S(j).a_r_right > S(j).a_r_left
+                S(j).a_correct = 1;
+            else
+                S(j).a_correct = 0;
+            end
+        end
+        if strcmp(S(j).type,'left') == 1
+            if S(j).a_r_left > S(j).a_r_right
+                S(j).a_correct = 1;
+            else
+                S(j).a_correct = 0;
+            end
         end
     end
-
-    for j = 2:length(S)
-        if strcmp(S(j).type,'right') == 1
-            S(j).u_r_att = S(j).u_r_right;
-            S(j).u_r_unatt = S(j).u_r_left;
-        else
-            S(j).u_r_att = S(j).u_r_left;
-            S(j).u_r_unatt = S(j).u_r_right;
-        end
-    end
-
-    figure
-    subplot(1,2,1)
-    scatter([S.a_r_att], [S.a_r_unatt])
-    ax = gca; ax.FontSize = 14;
-    title (['ATTended decoder accuracy ' num2str(a_accuracy(sh)) ', shift = ' num2str(shift_sec(sh))])
-    xlabel ('r_{attended}', 'FontSize', 20)
-    ylabel ('r_{unattended}', 'FontSize', 20)
-    grid on
-    refline(1,0)
-    pbaspect([1 1 1])
-    ax.YLim = [-0.1 0.25];
-    ax.XLim = [-0.1 0.25];
-
-    subplot(1,2,2)
-    scatter([S.u_r_att], [S.u_r_unatt])
-    ax = gca; ax.FontSize = 14;
-    title (['UNattended decoder accuracy ' num2str(u_accuracy(sh)) ', shift = ' num2str(shift_sec(sh))])
-    xlabel ('r_{attended}', 'FontSize', 20)
-    ylabel ('r_{unattended}', 'FontSize', 20)
-    grid on
-    refline(1,0)
-    pbaspect([1 1 1])
-    ax.YLim = [-0.1 0.25];
-    ax.XLim = [-0.1 0.25];
     
-    mu_Ratt(sh) = mean([S.a_r_att]);
-    SEM_Ratt(sh) = std([S.a_r_att])/sqrt(length([S.a_r_att]));
-    mu_Runatt(sh) = mean([S.u_r_att]);
-    SEM_Runatt(sh) = std([S.u_r_att])/sqrt(length([S.u_r_att]));
+    % compute the accuracy of UNattended decoders:
+    for j = 1:length(S)
+        if strcmp(S(j).type,'right') == 1
+            if S(j).u_r_right < S(j).u_r_left
+                S(j).u_correct = 1;
+            else
+                S(j).u_correct = 0;
+            end
+        end
+        if strcmp(S(j).type,'left') == 1
+            if S(j).u_r_left < S(j).u_r_right
+                S(j).u_correct = 1;
+            else
+                S(j).u_correct = 0;
+            end
+        end
+    end
+    
+    a_accuracy(sh) = sum([S.a_correct])/length(test_events);
+    u_accuracy(sh) = sum([S.u_correct])/length(test_events);
+    
+    % enter the direction as predicted by the ATTENDED mean decoder:
+    for i = 1:length(S)
+        if S(i).a_r_right>S(i).a_r_left
+            S(i).a_pred_dir = 'right';
+        else
+            S(i).a_pred_dir = 'left';
+        end
+    end
+    
+    
 end
 
 %%

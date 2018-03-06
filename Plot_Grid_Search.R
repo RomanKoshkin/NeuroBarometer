@@ -1,7 +1,7 @@
 library(R.matlab)
 library(ggplot2)
 library(gridExtra)
-df <- data.frame(matrix(unlist(readMat('/Users/RomanKoshkin/Downloads/output_grid (4).mat')),
+df <- data.frame(matrix(unlist(readMat('/Users/RomanKoshkin/Downloads/output_grid (6).mat')),
                         ncol=6, byrow=T))
 names(df)[1:6] <- c('a_suc', 'u_suc', 'lambda', 'en', 'filt','len_win_clas')
 

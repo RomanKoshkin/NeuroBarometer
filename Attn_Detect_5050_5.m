@@ -1,10 +1,12 @@
+% ALEX'S IDEA:
+
 % load('KOS_DAS_80Hz_1.mat')
 load('Merged123_ICA.mat')
 % load('new_kos_das.mat') % MIN-MAX NORMALIZED, ENVELOPE'D, FILTFILT'D
 % load('Merged123_noICA.mat')
 % load('BIG.mat')
 
-clearvars -except EEG H
+clearvars -except EEG
 tic
 
 LAMBDA = 0.01;
@@ -110,38 +112,32 @@ for j = training_data_idx
 
     response = EEG.data(1:60, start:fin)';
 
-    if strcmp(S(j).type, 'right')==1
-        [a_right,t, ~] = mTRFtrain(stimRight, response, Fs, 1, or, en, LAMBDA);
-        [u_left,t, ~] = mTRFtrain(stimLeft, response, Fs, 1, or, en, LAMBDA);
-        A_right(:,:,j) = a_right;
-        U_left(:,:,j) = u_left;
-    else
-        [a_left,t, ~] = mTRFtrain(stimLeft, response, Fs, 1, or, en, LAMBDA);
-        [u_right,t, ~] = mTRFtrain(stimRight, response, Fs, 1, or, en, LAMBDA);
-        A_left(:,:,j) = a_left;
-        U_right(:,:,j) = u_right;
-    end
+    [d_right,t, ~] = mTRFtrain(stimRight, response, Fs, 1, or, en, LAMBDA);
+    [d_left,t, ~] = mTRFtrain(stimLeft, response, Fs, 1, or, en, LAMBDA);
 
+    D_Left(:,:,j) = d_left;
+    D_Right(:,:,j) = d_right;
+    
     % report progress:
-    elapsed_time = toc;
-    disp(['Computing decoder from trial:' num2str(j) ' seconds'...
-                ' Kernel length: ' num2str(en-or)...
-                ' Elapsed: ' num2str(elapsed_time)])
+%     elapsed_time = toc;
+%     disp(['Computing decoder from trial:' num2str(j) ' seconds'...
+%                 ' Kernel length: ' num2str(en-or)...
+%                 ' Elapsed: ' num2str(elapsed_time)])
 end
+
+
 
 % load onset latencies into S.latency:
 temp = num2cell([EEG.event([S.code_no]).latency]);
 [S.latency] = temp{:};
 
 % average the decoders:
-A_left = mean(A_left,3, 'omitnan');
-A_right = mean(A_right,3, 'omitnan');
-U_left = mean(U_left,3, 'omitnan');
-U_right = mean(U_right,3, 'omitnan');
+D_Left_av = mean(D_Left,3);
+D_Right_av = mean(D_Right,3);
 
 % now use the average decoders to predict what's what in the test set: 
 
-parfor j = testing_data_idx % FOR/PARFOR
+for j = testing_data_idx % FOR/PARFOR
 
     start = round(S(j).latency);
     fin = round(start + len_win_classified*EEG.srate);
@@ -151,12 +147,9 @@ parfor j = testing_data_idx % FOR/PARFOR
         
     response = EEG.data(1:60, start:fin)';
 
-    [~, S(j).a_r_right, ~, ~] = mTRFpredict(stimRight, response, A_right, Fs, 1, or, en, Lcon);
-    [~, S(j).a_r_left, ~, ~] = mTRFpredict(stimLeft, response, A_left, Fs, 1, or, en, Lcon);
-    
-    [~, S(j).u_r_right, ~, ~] = mTRFpredict(stimLeft, response, U_right, Fs, 1, or, en, Lcon);
-    [~, S(j).u_r_left, ~, ~] = mTRFpredict(stimRight, response, U_left, Fs, 1, or, en, Lcon);
-
+    [~, S(j).a_r_right, ~, ~] = mTRFpredict(stimRight, response, D_Right_av, Fs, 1, or, en, Lcon);
+    [~, S(j).a_r_left, ~, ~] = mTRFpredict(stimLeft, response, D_Left_av, Fs, 1, or, en, Lcon);
+   
     disp(['parallel mode, trial ' num2str(j)])
 end
 clc
@@ -174,20 +167,3 @@ end
 % check if ATTENDED DECODER prediction matches the ground truth:
 temp = num2cell(strcmp({S.type}, {S.a_prediction}));
 [S.a_success] = temp{:};
-
-% enter the model UNATTENDED DECODER prediction into the table:
-for i = 1:length(S)
-    if S(i).u_r_right < S(i).u_r_left
-        S(i).u_prediction = 'right';
-    else
-        S(i).u_prediction = 'left';
-    end
-end
-
-% check if UNATTENDED DECODER prediction matches the ground truth:
-temp = num2cell(strcmp({S.type}, {S.u_prediction}));
-[S.u_success] = temp{:};
-
-
-disp(['Model accuracy (attended decoders): ' num2str(mean([S.a_success]))])
-disp(['Model accuracy (unattended decoders): ' num2str(mean([S.u_success]))])
