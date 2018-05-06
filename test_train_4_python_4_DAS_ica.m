@@ -1,58 +1,48 @@
 clear
 
-filein = 'Merged123_250Hz';
-% filein = 'Merged123';
-% filein = 'Merged456';
-% filein = 'KOS_100Hz_ICA';
-load(['/Volumes/Transcend/NeuroBarometer/' filein '.mat'])
+filein = 'DAS_1_ica.mat';
+load([filein])
 
-CHAN_RANGE = 1:60;
+n_chan = size(EEG.data);
+CHAN_RANGE = 1:n_chan(1)-2;
 
 WAVELET = 0;
 IMSIZE = [40, 32];
 COMPUTE_ENVELOPE = 1;
-DOWNSAMPLING = 1;
-DOWNSAMPLE_TO = 80;
+DOWNSAMPLING = 0;
+DOWNSAMPLE_TO = 200;
 CENTER_NORMALIZE = 1;
-% FILTER_AUDIO = 0;
-% FILTER_EEG = 0;
-%     stopband = 8.5;
-%     passband = 8;
-%     order = 1000;
-FILTER_ALL = 1;
+NOTCH = 1;
+FILTER_ALL = 0;
     low_cutoff = 1;
-    high_cutoff = 38;
-TRIAL_LEN = 30; % what's the duration of a trial
+    high_cutoff = 60;
+TRIAL_LEN = 60; % what's the duration of a trial
 WINSIZE = 2; % size of window
 STEPSIZE = 2; % step between windows (onset-to-onset)
 
-% range of events in the EEG.event struct
-% events = [5:64, 75:134, 143:202];     % Merged123
-% events = [1:94], [101:192], [197:289] % Merged456
+events = [1:124];
 
-events = [143:202];
 
-% for Merged456.mat
-% events = [1:94]; % [101:192], [101:192], [197:289] 
+EEG.description{1,1} = 'srate'; EEG.description{1,2} = EEG.srate;
+EEG.description{2,1} = 'subject'; EEG.description{2,2} = 'DASHA';
+EEG.description{3,1} = 'date';
+EEG.description{4,1} = 'original file'; EEG.description{4,2} = EEG.comments;
+EEG.description{5,1} = 'notch'; EEG.description{5,2} = 1;
+EEG.description{6,1} = 'passband FIR'; EEG.description{6,2} = num2str([low_cutoff high_cutoff]);
+EEG.description{7,1} = 'ref'; EEG.description{7,2} = EEG.ref;
+EEG.description{8,1} = 'source'; EEG.description{8,2} = EEG.comments;
+EEG.description{9,1} = 'montage'; EEG.description{9,2} = 'standard';
+EEG.description{10,1} = 'stimuli'; EEG.description{10,2} = 'stimuli';
+
+
 
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
     'a_r_right', [], 'u_r_left', [],...
     'a_r_left', [], 'u_r_right', []);
-ch_left = find(ismember({EEG.chanlocs.labels}, 'Left_AUX') == 1);
-ch_right = find(ismember({EEG.chanlocs.labels},'Right_AUX') == 1);
+ch_left = 54;
+ch_right = 55;
 Fs = EEG.srate;
-
-% if FILTER_AUDIO == 1
-%     [l, r] = filt_audio(EEG.data(ch_left,:), EEG.data(ch_right,:), Fs, stopband, passband, order);
-%     figure; plot(EEG.data(61,1000:1300));hold on;plot(l(1000:1300))
-%     EEG.data(ch_left,:) = l;
-%     EEG.data(ch_right,:) = r;  
-% end
-% if FILTER_EEG == 1
-%     EEG.data(CHAN_RANGE, :) = ...
-%         filt_EEG(EEG.data(CHAN_RANGE,:), Fs, stopband, passband, order);
-% end
 
 if CENTER_NORMALIZE==1
     EEG.data = EEG.data-repmat(mean(EEG.data,2),1,size(EEG.data,2));
@@ -62,17 +52,17 @@ if CENTER_NORMALIZE==1
     end
 end
 
+if NOTCH == 1
+    [EEG.data(ch_left:ch_right,:)] = notch50(EEG.data(ch_left:ch_right,:), EEG.srate);
+end
 if FILTER_ALL == 1
     [EEG, ~, ~] = pop_eegfiltnew(EEG, low_cutoff, high_cutoff);
 end
 
+
 if COMPUTE_ENVELOPE == 1
-    figure; plot(EEG.data(61,1000:1300), 'LineWidth', 1); hold on
-%     EEG.data(ch_left,:) = abs(hilbert(EEG.data(ch_left,:)));
-%     EEG.data(ch_right,:) = abs(hilbert(EEG.data(ch_right,:)));
     EEG.data(ch_left,:) = envelope(EEG.data(ch_left,:));
     EEG.data(ch_right,:) = envelope(EEG.data(ch_right,:));
-    plot(EEG.data(61,1000:1300), 'LineWidth', 3)
 end
 
 
@@ -101,11 +91,11 @@ end
 % determine what's right, what's left:
 for j = events
     if strcmp(EEG.event(j).type, 'L_Lef_on') == 1 
-        S(j).type = 'left';
+        S(j).type = 'foreign';
         S(j).code_no = j;
     end
     if strcmp(EEG.event(j).type, 'L_Rig_on') == 1
-        S(j).type = 'right';
+        S(j).type = 'russian';
         S(j).code_no = j;
     end
 
@@ -135,17 +125,19 @@ for i = 1:length({S.type})
     while fin < S(i).latency + TRIAL_LEN*Fs
         counter = counter + 1;
         X(counter,:,:) = EEG.data(CHAN_RANGE,start:fin);
-        if strcmp(S(i).type, 'right') == 1
-            Y(counter,:) = EEG.data(62,start:fin);
-            startfin(counter,1:2) = [start fin];
+        
+        startfin(counter,1:2) = [start fin];
+        if strcmp(S(i).type, 'russian') == 1
             Z(counter) = 1;
-            disp([num2str(counter) '_' S(i).type ' right, trial = ', num2str(i)])
+            Q{counter} = 'russian';
+            Y(counter,:) = EEG.data(ch_right,start:fin);
         else
-            Y(counter,:) = EEG.data(61,start:fin);
-            startfin(counter,1:2) = [start fin];
             Z(counter) = 0;
-            disp([num2str(counter) '_' S(i).type ' left, trial = ', num2str(i)])
-        end
+            Q{counter} = 'foreign';
+            Y(counter,:) = EEG.data(ch_right,start:fin);
+        end;
+        disp([num2str(counter) '_' S(i).type ' right, trial = ', num2str(i)])
+       
         start = start + STEPSIZE*Fs - 1;
         disp([num2str(start/Fs) '___' num2str((S(i).latency + TRIAL_LEN*Fs)/Fs)])
         fin = start + WINSIZE*Fs - 1;    
@@ -153,6 +145,7 @@ for i = 1:length({S.type})
     end
 end
 Z = Z';
+Q = Q';
 
 if WAVELET == 1
     
@@ -173,16 +166,16 @@ if WAVELET == 1
 end
 
 if WAVELET==0
-    fileout = ['/home/amplifier/home/DATASETS/' ... 
+    fileout = ['/Users/RomanKoshkin/Downloads/EEG_latest/' ... 
         filein ', ' ...
         'DS2=' num2str(DOWNSAMPLE_TO) 'Hz, '...
         'FIR=' num2str(low_cutoff) '-' ...
         num2str(high_cutoff) 'Hz, ' ...
         'centnorm=', num2str(CENTER_NORMALIZE) ', ' ...
         'Env=' num2str(COMPUTE_ENVELOPE) ', '...
-        'TD, ' ...
+        'ICA, ' ...
         num2str(events(1)) '-' num2str(events(end)) '.mat']
-    save(fileout, 'X', 'Y', 'Z', 'WINSIZE', 'STEPSIZE', 'TRIAL_LEN')
+    save(fileout, 'X', 'Y', 'Z', 'Q', 'WINSIZE', 'STEPSIZE', 'TRIAL_LEN')
     % DIAGNOSTICS:
     ch_cz = find(ismember({EEG.chanlocs.labels}, 'Cz') == 1);
     ch_x_cz = 2

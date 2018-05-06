@@ -6,8 +6,9 @@
 load('KOS_DAS_80Hz.mat') % DOWNLOAD HERE: https://drive.google.com/open?id=1-hwYUvl5iKi9DZGY2QusjM4cmL3EWh0C
 clearvars -except EEG
 tic
+
 %% define model parameters:
-LAMBDA = 0.03;
+LAMBDA = 0.01;
 len_win_classified = 30;
 % shift_sec = [-2.75 -2.5 -2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -0.25 0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75]; % vector of stimulus shifts
 % shift_sec = [-1.25 -1 -0.75 -0.5 -0.25 -0.125 0 0.125 0.25 0.5]; % vector of stimulus shifts
@@ -15,16 +16,24 @@ len_win_classified = 30;
 shift_sec = [0];
 train_test_split = .75;
 compute_envelope = 1;
+center_normalize = 1;
+
+low_cutoff = 2;
+high_cutoff = 9;
 
 % lags start and end:
 or = 0;    % kernel origin, ms % ???????????, ??? ??????, ??? ?????
-en = 1000;
+en = 600;
 
 % range of events in the EEG.event struct
 % events = [5:64, 75:134, 143:202]; % event ordinal numbers in the  
 events = [5:64]; % event ordinal numbers in the  
 
-
+if center_normalize==1
+    EEG.data = EEG.data-repmat(mean(EEG.data,2),1,size(EEG.data,2));
+    EEG.data = EEG.data./std(EEG.data,0, 2);
+end
+[EEG, ~, ~] = pop_eegfiltnew(EEG, low_cutoff, high_cutoff);
 
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...
@@ -75,7 +84,7 @@ test_events = code_nos(~ismember(code_nos, train_events))
 % returns what has been declared before. If you define a var inside a
 % parfor loop, it is never returned.
 % Initialize vars for the parfor loop:
-Lcon = ones(size(EEG.data, 1)-2, 1); % minus audio channels
+Lcon = zeros(size(EEG.data, 1)-2, 1); % minus audio channels
 g_att = zeros(60,(en-or)/1000*Fs+1, length(train_events));
 g_unatt = zeros(60,(en-or)/1000*Fs+1,length(train_events));
 

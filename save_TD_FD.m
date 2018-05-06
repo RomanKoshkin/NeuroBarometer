@@ -1,6 +1,7 @@
 %% extract freqs of interest:
+% B0403T
 
-DOMAIN = 1;
+DOMAIN = 0;
 
 class1 = find([EEG.event.type]==769)';
 class1(:,2) = repmat(0,[length(class1) 1]);
@@ -24,7 +25,7 @@ if DOMAIN == 0
     Z = Z';
     Y = Y';
     disp(size(X))
-    save('/Users/RomanKoshkin/Downloads/BCI_TD.mat', 'X', 'Y', 'Z')    
+    save('/Users/RomanKoshkin/Downloads/BCI_0703T_TD.mat', 'X', 'Y', 'Z')    
 end
 
 if DOMAIN == 1
@@ -39,7 +40,9 @@ if DOMAIN == 1
         for j = 1:3
             [S,F,T] = spectrogram(EEG.data(j,addr_latency(i):addr_latency(i)+2*EEG.srate-1),...
                 window_len,noverlap,nfft,EEG.srate);
-            X(i,:,:,j) = abs([S(13:28,:); imresize(S(36:63,:), [15, 32])]).^2;
+%             X(i,:,:,j) = abs([S(13:28,:); imresize(S(36:63,:), [15, 32])]).^2;
+%             X(i,:,:,j) = abs(imresize(S, [31, 32])).^2;
+            X(i,:,:,j) = abs(imresize(S(1:17,:), [31, 32])).^2; 
         end
         Y(i) = addr(i,2);
         disp(i)

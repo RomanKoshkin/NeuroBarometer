@@ -1,4 +1,4 @@
-function [CIlo,CIhi] = AgrestiCoullCI(n_successes, n_trials, alpha)
+    function [CIlo,CIhi] = AgrestiCoullCI(n_successes, n_trials, alpha)
 % in Python it works the same:
 % from statsmodels.stats.proportion import proportion_confint
 % proportion_confint(25,30,0.05,'agresti_coull')
