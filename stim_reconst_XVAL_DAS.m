@@ -1,17 +1,26 @@
-% Compared to stim_reconst_1_PARFOR.m, this code is about twice as
-% efficient.
+%% PRE-PROCESSING PROTOCOL 1: \n
+% =========================\n
+% - import raw DAS197-289\n
+% - notch 49-51 Hz on all but audio(eeglab)\n
+% - bandpass 1-60 on all but audio (eeglab)\n
+% - compute envelope (on AUX_left and AUX_right)\n
+% - resample to 250 Hz\n
+% - Re-reference to average (excluding audio channels)\n
+% - Edit channel locations\n
+% - Binica on all but audio (eeglab)\n
+%%
 clc
 disp('loading dataset...')
 % load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH.mat')
-% load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz.mat')
-load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz_2.mat')
+load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz.mat')
+% load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz_2.mat')
 
 disp('dataset loaded')
 clearvars -except EEG
 tic
 
 %% define model parameters:
-ST =                    'left' % with which channel to correlate
+ST =                    'right' % with which channel to correlate
 LAMBDA =                0.47;
 len_win_classified =    60;
 compute_envelope =      1;
