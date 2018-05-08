@@ -1,7 +1,15 @@
-% X = EEG.data(:,181*EEG.srate:189*EEG.srate);
+% run ICA_my.m first:
+
+clearvars -except X EEG ICA ALLCOM ALLEEG CURRENTSET CURRENTSTUDY LASTCOM PLUGINLIST STUDY x_hat
+
+start_s = 35;
+fin_s = 40;
+start = start_s * EEG.srate;
+fin = fin_s * EEG.srate;
+
+X = EEG.data(:,start:fin);
 % X = highpassFIR(X, EEG.srate, 1, 2, 0);
-clearvars -except EEG ALLCOM ALLEEG CURRENTSET CURRENTSTUDY LASTCOM PLUGINLIST STUDY x_hat
-X = x_hat;
+% X = x_hat;
 
 for i = 1:size(EEG.data,1)
     Y(i,:) = circshift(X(i,:),-1);
@@ -59,3 +67,7 @@ for i = 1:30
     plot(x_hat_plot(i,:), 'LineWidth', 2, 'Color', 'r');
     hold on
 end
+
+CCA_CLEANED = EEG;
+CCA_CLEANED.data(:,start:fin) = x_hat;
+pop_eegplot(CCA_CLEANED, 1, 0, 1);

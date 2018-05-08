@@ -1,7 +1,8 @@
+% run ICA_my.m first:
 
 % load a fragment of EEG with a blink
-start_s = 181;
-fin_s = 189;
+start_s = 35;
+fin_s = 40;
 start = start_s * EEG.srate;
 fin = fin_s * EEG.srate;
 x = EEG.data(:,start:fin);
@@ -69,4 +70,8 @@ for i = 1:7
     plot(x_hat(i,:))
 end
 title('Original EEG, and Org.-1 eyblink component')
+ASR_CLEANED = EEG;
+ASR_CLEANED.data(:,start:fin) = x_hat;
+pop_eegplot(ASR_CLEANED, 1, 0, 1);
+
     
