@@ -1,13 +1,27 @@
 % run ICA_my.m first:
+load('/Volumes/Transcend/NeuroBarometer/Merged456.mat')
 
+% filter
+% [EEG, ~, ~] = pop_eegfiltnew(EEG, 1, 48);
+
+% resample:
+EEG = pop_resample(EEG, 128);
+EEG = pop_select(EEG, 'channel', [1:60]);
+%%
 clearvars -except X EEG ICA ALLCOM ALLEEG CURRENTSET CURRENTSTUDY LASTCOM PLUGINLIST STUDY x_hat
-
-start_s = 35;
-fin_s = 40;
+start_s = 99;
+fin_s = 104;
 start = start_s * EEG.srate;
 fin = fin_s * EEG.srate;
 
 X = EEG.data(:,start:fin);
+% X = x_hat;
+% for i = 1:size(EEG.data,1)
+%     X(i,:) = X(i,:) - mean(X(i,:));
+%     X(i,:) = X(i,:)./std(X(i,:));
+%     disp(['centering & z-transforming channel ' num2str(i)])
+% end
+
 % X = highpassFIR(X, EEG.srate, 1, 2, 0);
 % X = x_hat;
 
@@ -41,8 +55,7 @@ err2 = sum(M * V(:,1) - S(1,1) * U(:,1));
 disp('svd')
 disp(err2)
 %%
-% project our data onto the first seven largest eigenvectors to get its 
-% principal components:
+% project our data onto the eigenvectors to get its components activations:
 COMPS = U'*X;
 
 figure
@@ -54,7 +67,8 @@ end
 title('BSS-CCA computed source activations: least auto-correlated at the bottom')
 
 % zero out the least auto-correlated component:
-COMPS(29:30,:) = zeros(2,length(COMPS));
+COMPS(29,:) = sum(COMPS(1:28,:),1)./28;
+COMPS(30,:) = sum(COMPS(1:28,:),1)./28;
 
 % back-project the components into the channel space:
 x_hat = U' * COMPS; % U' could as well be inv(V), since V is orthogonal

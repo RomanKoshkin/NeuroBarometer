@@ -1,8 +1,8 @@
 % run ICA_my.m first:
 
 % load a fragment of EEG with a blink
-start_s = 35;
-fin_s = 40;
+start_s = 99;
+fin_s = 104;
 start = start_s * EEG.srate;
 fin = fin_s * EEG.srate;
 x = EEG.data(:,start:fin);
@@ -44,7 +44,8 @@ err2 = sum(M' * V(:,1) - S(1,1) * U(:,1)); % The non-zero singular values
 disp(err2)
 %%
 
-% project our data onto the first seven largest eigenvectors to get its 
+% project our data from the sensor space into the source (PCs, or eigenvectors) space.
+% Plot the first seven largest components: 
 % principal components:
 C = V'*x;
 figure

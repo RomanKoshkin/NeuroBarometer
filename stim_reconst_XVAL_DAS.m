@@ -11,9 +11,10 @@
 %%
 clc
 disp('loading dataset...')
-% load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH.mat')
-load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz.mat')
-% load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz_2.mat')
+% load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_CH.mat')
+% load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_CH_AVG_500Hz.mat')
+% load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_CH_AVG_500Hz_2.mat')
+load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_raw.mat')
 
 disp('dataset loaded')
 clearvars -except EEG
@@ -50,67 +51,50 @@ end
 
 if AUDIO_PREPROC == 1
     Fs = EEG.srate;
-    figure; plot (EEG.data(ch_left, 140*Fs:145*Fs)); hold on
-    EEG.data(ch_left:ch_right,:) = highpassFIR(EEG.data(ch_left:ch_right,:), Fs, 1, 2, 0);
-    plot (EEG.data(ch_left, 140*Fs:145*Fs)); title('Audio before and after highpass filtering');
     
-    EEG.data(ch_right,:) = EEG.data(ch_right,:)/std(EEG.data(ch_right,:));
-    EEG.data(ch_left,:) = EEG.data(ch_left,:)/std(EEG.data(ch_left,:));
+    AUDIO = pop_select(EEG, 'channel', [ch_left:ch_right]);
+    AUDIO = pop_eegfiltnew(AUDIO, 5, 700);
     
-    figure; plot (EEG.data(ch_left, 140*Fs:145*Fs)); hold on;
-    EEG.data(ch_left:ch_right,:) = bandpassFIR(EEG.data(ch_left:ch_right,:), Fs, 230, 240, 100, 65, 70, 0);
+    AUDIO.data(1,:) = AUDIO.data(1,:)./std(AUDIO.data(1,:));
+    AUDIO.data(2,:) = AUDIO.data(2,:)./std(AUDIO.data(2,:));
     
-    EEG.data(ch_right,:) = EEG.data(ch_right,:)/std(EEG.data(ch_right,:));
-    EEG.data(ch_left,:) = EEG.data(ch_left,:)/std(EEG.data(ch_left,:));
+    plot(AUDIO.data(2,140*Fs:145*Fs)); hold on;
     
-    plot (EEG.data(ch_left, 140*Fs:145*Fs)); title('z-transformed, bandpass-filtered (~100-150 Hz, F_{0} audio before and after highpass filtering');
-    audio = EEG.data(ch_left:ch_right,:);
-else
-    audio = EEG.data(ch_left:ch_right,:);
+    AUDIO.data(1,:) = envelope(AUDIO.data(1,:));
+    AUDIO.data(2,:) = envelope(AUDIO.data(2,:));
+    
+    plot(AUDIO.data(2,140*Fs:145*Fs)); hold on;
+    title('Original and Envelope')
 end
 
 if center_normalize == 1
-    EEG.data = EEG.data-repmat(mean(EEG.data,2),1,size(EEG.data,2));
-    EEG.data = EEG.data./std(EEG.data,0, 2);
-end
-if filtering == 1
-    [EEG, ~, ~] = pop_eegfiltnew(EEG, low_cutoff, high_cutoff);
-end
-
-Fs = EEG.srate;
-if compute_envelope == 1
-    % put back the audio:
-    EEG.data(ch_left:ch_right,:) = audio;
-    
-    % diagnostics
-    diagn1 = EEG.data(ch_left,:);
-    diagn2 = envelope(EEG.data(ch_left,:));
-    
-    EEG.data(ch_left,:) = envelope(EEG.data(ch_left,:));
-    EEG.data(ch_right,:) = envelope(EEG.data(ch_right,:)); 
-    
+    for i = 1:size(EEG.data,1)
+    EEG.data(i,:) = EEG.data(i,:) - mean(EEG.data(i,:));
+    EEG.data(i,:) = EEG.data(i,:)./std(EEG.data(i,:));
+    disp(['centering & z-transforming channel ' num2str(i)])
+    end
+    clc
 end
 
 if RESAMPLE == 1
-    % resample
+    disp(['resampling EEG to ' num2str(DOWNSAMPLE_TO) ' Hz'])
     EEG = pop_resample(EEG, DOWNSAMPLE_TO);
-    diagn3 = EEG.data(ch_left,:);
+    disp(['resampling AUDIO to ' num2str(DOWNSAMPLE_TO) ' Hz'])
+    AUDIO = pop_resample(AUDIO, DOWNSAMPLE_TO);
     Fs = EEG.srate;
 end
 
-% diagnostic plots:
-figure
-subplot (2,1,1)
-plot(diagn1(140*500:142*500));
-hold on;
-len1 = length(diagn1(140*500:142*500));
-plot(diagn2(140*500:142*500));
-xlim([1 len1])
-subplot(2,1,2)
-plot(diagn3(140*Fs:142*Fs));
-len2 = length(diagn1(140*Fs:142*Fs));
-xlim([1 len2])
-
+if filtering == 1
+    disp(['filtering EEG between' num2str(low_cutoff) ' and ' num2str(high_cutoff)])
+    [EEG, ~, ~] = pop_eegfiltnew(EEG, low_cutoff, high_cutoff);
+    % put back the UNFILTERED, but downsampled, envelope:
+    disp('putting the audio back...')
+    EEG.data(ch_left:ch_right,:) = AUDIO.data(1:2,:);
+end
+clear AUDIO
+pop_eegplot(EEG, 1, 0, 1);
+disp('Preprocessing complete in...')
+toc
 %%
 % initialize an empty struct array to store results:
 S = struct('type', [], 'code_no', [], 'latency', [],...

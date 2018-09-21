@@ -83,7 +83,7 @@ temp = num2cell([EEG.event([S.code_no]).latency]);
 % returns what has been declared before. If you define a var inside a
 % parfor loop, it is never returned.
 % Initialize vars for the parfor loop:
-
+%%
 G_ATT = [];
 G_UNATT = [];
 LCON_ATT = [];
@@ -108,7 +108,7 @@ for k = 1:length(S)
         start = round(EEG.event(addr).latency);
         fin = round(start + len_win_classified*EEG.srate);
 
-        stimLeft = EEG.data(ch_left, start:fin)';
+        stimLeft = abs(hilbert(EEG.data(ch_left, start:fin)';
         stimRight = abs(hilbert(EEG.data(ch_right, start:fin)))';
 
         response = EEG.data(1:60, start:fin)';

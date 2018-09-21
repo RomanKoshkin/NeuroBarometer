@@ -1,14 +1,25 @@
 close all
-EEG = pop_loadset('filepath', '/Volumes/Transcend/NeuroBarometer/beeps_1/NeoRec_2018-07-09_16-19-17', 'filename', 'NeoRec_2018-07-09_16-19-17_downsampled_ICAcleaned.mat');
 load('scores.mat')
-clearvars -except EEG a scores_9july
+
+% EEG = pop_loadset('filepath', '/Volumes/Transcend/NeuroBarometer/beeps_1/NeoRec_2018-07-09_16-19-17', 'filename', 'NeoRec_2018-07-09_16-19-17_downsampled_ICAcleaned.mat');
+% EEG = pop_loadset('filepath', '/Volumes/Transcend/NeuroBarometer/beeps_1/NeoRec_2018-08-10_19-44-48/', 'filename', 'NeoRec_2018-08-10_19-44-48.mat');
+EEG = pop_loadset('filepath', '/Volumes/Transcend/NeuroBarometer/beeps_1/NeoRec_2018-07-06_14-02-33/', 'filename', 'NeoRec_2018-07-06_14-02-33.mat');
+
+scores = scores_6july;
+clearvars -except EEG a scores
+
+
+% EEG = pop_loadset('filepath', '/Volumes/Transcend/NeuroBarometer/beeps_1/NeoRec_2018-07-04_22-18-39', 'filename', 'NeoRec_2018-07-04_22-18-39_ds,filt.mat');
+% scores = scores_4july;
+% clearvars -except EEG a scores
+
 %% ___START PARAMS___
 good_components = [1];          
 project_on_clean = 1;           % 0 or 1
 PCA_on_scores = 1;              % 0 or 1
 plot_and_test_components = 1;   % 0 or 1
-var_of_interest = 3;
-quant = [0.40 0.60];
+var_of_interest = 2;
+quant = [0.33 0.66];
 chan = 17;
 
 % *sig
@@ -97,7 +108,7 @@ for i = 1:3
 end
 %% analyze windows:
 
-[transf, mapped_transf] = plot_s(scores_9july);
+[transf, mapped_transf] = plot_s(scores);
 
 p(1,1:2) = [0.582 0.582];
 p(2,1:2) = [0.605 0.605];
@@ -109,12 +120,12 @@ end
 
 if PCA_on_scores == 0
     % text numbers in set A and set B:
-    cutoff_val = quantile(scores_9july(var_of_interest,:), quant);
+    cutoff_val = quantile(scores(var_of_interest,:), quant);
     figure(3)
     subplot(2,2,3)
-    histogram(scores_9july(var_of_interest,:), 10)
-    A = find(scores_9july(var_of_interest,:) <= cutoff_val(1));
-    B = find(scores_9july(var_of_interest,:) >= cutoff_val(2));
+    histogram(scores(var_of_interest,:), 10)
+    A = find(scores(var_of_interest,:) <= cutoff_val(1));
+    B = find(scores(var_of_interest,:) >= cutoff_val(2));
 end
 if PCA_on_scores == 1
     % text numbers in set A and set B:
@@ -271,8 +282,8 @@ s.FaceAlpha = 0.25;
 patch(s)
 
 %% Functions:
-function [transf, mapped_transf] = plot_s(scores_9july)
-    ans = corr(scores_9july',scores_9july');
+function [transf, mapped_transf] = plot_s(scores)
+    ans = corr(scores',scores');
     figure
     subplot(2,2,1)
     imagesc(ans)
@@ -280,7 +291,7 @@ function [transf, mapped_transf] = plot_s(scores_9july)
     tit = title('Covariance Matrix');
     tit.FontSize = 14;
 
-    [U,S,~] = svd(scores_9july);
+    [U,S,~] = svd(scores);
     subplot(2,2,2)
     imagesc(-U)
     colorbar
@@ -294,6 +305,6 @@ function [transf, mapped_transf] = plot_s(scores_9july)
     grid on
     colorbar
 
-    transf = -U(:,1:3)' * scores_9july;
+    transf = -U(:,1:3)' * scores;
     mapped_transf = mapminmax(transf, 1,10);
 end

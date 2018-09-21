@@ -13,9 +13,13 @@ clc
 disp('loading dataset...')
 % load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH.mat')
 % load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz.mat')
-filein = 'DAS_CH_AVG_500Hz_2.mat';
+% filein = 'DAS_CH_AVG_500Hz_2.mat';
+% filein = 'NeoRec_2018-05-08_21-47-10+ICA(-IC1)preproc_aud.mat';
+% filein = 'NeoRec_2018-05-08_21-47-10+ICA.mat';
+% filein = 'NeoRec_2018-05-08_16-52-10_-eyes.mat';
+filein = 'NeoRec_2018-05-08_16-52-10.mat';
 
-load(['/Users/RomanKoshkin/Downloads/EEG_latest/' filein])
+load(['/Volumes/Transcend/NeuroBarometer/EEG_latest/' filein])
 
 disp('dataset loaded')
 clearvars -except EEG filein
@@ -28,8 +32,8 @@ filtering =             1;
 RESAMPLE =              1;
 low_cutoff =            1;
 high_cutoff =           40;
-DOWNSAMPLE_TO =         100;
-AUDIO_PREPROC =         1;
+DOWNSAMPLE_TO =         64;
+AUDIO_PREPROC =         0;
 
 TRIAL_LEN = 60; % what's the duration of a trial
 WINSIZE = 2; % size of window
@@ -186,7 +190,7 @@ Q = Q';
 % end
 
 if WAVELET==0
-    fileout = ['/Users/RomanKoshkin/Downloads/EEG_latest/' ... 
+    fileout = ['/Volumes/Transcend/NeuroBarometer/EEG_latest/' ... 
         filein ', ' ...
         'DS2=' num2str(DOWNSAMPLE_TO) 'Hz, '...
         'FIR=' num2str(low_cutoff) '-' ...

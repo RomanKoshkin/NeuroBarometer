@@ -11,9 +11,9 @@
 %%
 clc
 disp('loading dataset...')
-% load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH.mat')
-load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz.mat')
-% load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz_2.mat')
+% load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_CH.mat')
+load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_CH_AVG_500Hz.mat')
+% load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_CH_AVG_500Hz_2.mat')
 
 disp('dataset loaded')
 clearvars -except EEG

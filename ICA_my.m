@@ -1,7 +1,7 @@
 % EEG1 = pop_select(EEG, 'time', [35 105]);
 
 % load data:
-load('/Users/RomanKoshkin/Downloads/EEG_latest/DAS_CH_AVG_500Hz.mat')
+load('/Volumes/Transcend/NeuroBarometer/EEG_latest/DAS_CH_AVG_500Hz.mat')
 
 % cache and remove audio:
 AUDIO = pop_select(EEG, 'channel', [64:65]);
