@@ -1,3 +1,5 @@
+% gets alpha for early, middle, and late trials within each commercial,
+% draws the plots
 function [A] = get_alpha_EML(EEG, X_early, X_late, X_middle, k, p, a, chan, single_mode)
     fs = EEG.srate;
     number_of_frequencies = 20;

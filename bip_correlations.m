@@ -1,5 +1,5 @@
 t = linspace(-100, 500, 121);
-ds_ids = unique({EEG.event.dataset})'; ds_ids(1) = [];
+ds_ids = unique({EEG.event.dataset}); ds_ids(1) = [];
 
 for i = 1:length({EEG.event.type})
     if isempty(str2num(EEG.event(i).type))==1;
@@ -13,7 +13,7 @@ end
 for k = 1:length(ds_ids)
     ds_ids(k)
     for txt = 1:50
-        tmp_nums = find(ismember({EEG.event.dataset}', ds_ids(k)) & ismember(labels, txt));
+        tmp_nums = find(ismember({EEG.event.dataset}, ds_ids(k)) & ismember(labels, txt));
         disp(size(tmp_nums))
         qq = quantile(tmp_nums,[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9]);
         third1 = tmp_nums(find(tmp_nums<qq(1)));

@@ -1,3 +1,4 @@
+% mark trials as EARLY, MIDDLE or LATE
 t = linspace(-100, 500, 121);
 ds_ids = unique({EEG.event.dataset})'; ds_ids(1) = [];
 
@@ -24,8 +25,26 @@ for k = 1:length(ds_ids)
         [EEG.event(third3).third] = deal(3);
     end
 end
+%% split data and save as separate subjects (early and late for CSP)
 
-%%
+% for i = 1:11
+%     early_idx = find([EEG.event.third]==1 & ismember({EEG.event.dataset}, ds_ids(i)));
+%     middle_idx = find([EEG.event.third]==2 & ismember({EEG.event.dataset}, ds_ids(i)));
+%     late_idx = find([EEG.event.third]==3 & ismember({EEG.event.dataset}, ds_ids(i)));
+% 
+%     lat_early = [EEG.event(early_idx).latency];
+%     lat_middle = [EEG.event(middle_idx).latency];
+%     lat_late = [EEG.event(late_idx).latency];
+% 
+%     X_early = ERPs_1(EEG, lat_early);
+%     X_middle = ERPs_1(EEG, lat_middle);
+%     X_late = ERPs_1(EEG, lat_late);
+%     name = ['/Volumes/Transcend/NeuroBarometer/beeps_1/early_late_alpha', num2str(i)]
+%     save(name, 'X_early', 'X_late')
+% end
+
+%% by-subject ALPHA POWER, TOPOGRAPHIES, AND ERPS FOR EARLY, MID, AND LATE
+
 f2 = figure('units','normalized','outerposition',[0 0 1 1]);
 p2 = uipanel('Parent',f2,'BorderType','none');
 p2.Title = 'Alpha Power (Early, Middle, Late)'; p2.TitlePosition = 'centertop'; p2.FontSize = 20; p2.FontWeight = 'bold';
@@ -104,7 +123,8 @@ for i = 1:11
     tit = title(ds_ids(i));
     tit.FontSize = 14;
 end
-%%
+%% GRAND AVERAGE ALPHA POWER, TOPOGRAPHIES, AND ERPS FOR EARLY, MID, AND LATE
+
 early_idx = find([EEG.event.third]==1 & ismember({EEG.event.dataset}, ds_ids([1:11])));
 middle_idx = find([EEG.event.third]==2 & ismember({EEG.event.dataset}, ds_ids([1:11])));
 late_idx = find([EEG.event.third]==3 & ismember({EEG.event.dataset}, ds_ids([1:11])));
@@ -149,10 +169,10 @@ p2.Title = 'Alpha Power (Early, Middle, Late)'; p2.TitlePosition = 'centertop'; 
 get_alpha_EML(EEG, X_early, X_late, X_middle, 1, p2, a, 17, 1)
 
 figure
-plot(t, X_early_m(17,:), 'b')
+plot(t, X_early_m(17,:), 'b', 'LineWidth', 2)
 hold on
-plot(t, X_middle_m(17,:), 'y')
-plot(t, X_late_m(17,:), 'r')
+plot(t, X_middle_m(17,:), 'g', 'LineWidth', 2)
+plot(t, X_late_m(17,:), 'r', 'LineWidth', 2)
 tit = title({'Grand Average', ['p = ', num2str(prob)]});
 tit.FontSize = 14;
 leg = legend({'early', 'middle', 'late'});

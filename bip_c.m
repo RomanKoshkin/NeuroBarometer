@@ -1,11 +1,12 @@
-close all
+cd /Users/RomanKoshkin/Documents/MATLAB/NeuroBarometer
+eeglab redraw
 load('a.mat')
 load('scores.mat')
 load('lookup_tab.mat')
-
 % EEG = pop_loadset('filepath', '/Volumes/Transcend/NeuroBarometer/beeps_1/', 'filename', '1-6.set');
 EEG = pop_loadset('filepath', '/Volumes/Transcend/NeuroBarometer/beeps_1/', 'filename', 'all.mat');
-%%
+%% load responses to the EEG.event struct. 
+% if you want projected scores, run the section below
 
 % [EEG.event.dataset] = deal([]);
 % [EEG.event.dataset] = deal(EEG.comments);
@@ -54,7 +55,7 @@ end
 % if you want projected scores and quantiles, launch scores_eig and BLOCK_2
 
 quant = [0.25 0.75];
-var_of_interest = 4;
+var_of_interest = 2;
 
 ff = figure('units','normalized','outerposition',[0 0 1 1]);
 pp = uipanel('Parent',ff,'BorderType','none');
@@ -160,7 +161,7 @@ end
 error('CODE STOPPED')
 
 %% Grand Averages
-chan = 64;
+chan = 17;
 
 f = figure('units','normalized','outerposition',[0 0 1 1]);
 p = uipanel('Parent',f,'BorderType','none'); 
@@ -182,7 +183,7 @@ p1.FontWeight = 'bold';
 responses = [EEG.event.response1]';
 tab = struct;
 
-for k = 4%1:10
+for k = 1:10
     quant = [0.25 0.75];
     var_of_interest = k;
 
@@ -197,6 +198,10 @@ for k = 4%1:10
     HI_idx = find(responses(:,var_of_interest) >= hi_co);
     MID_idx = find(not(responses(:,var_of_interest) <= lo_co) &...
         not(responses(:,var_of_interest) >= hi_co));
+    
+    EEG.event(LO_idx).resp = deal('low');
+    EEG.event(MID_idx).resp = deal('mid');
+    EEG.event(HI_idx).resp = deal('high');
 
     lat_lo = [EEG.event(LO_idx).latency];
     lat_hi = [EEG.event(HI_idx).latency];
@@ -210,27 +215,33 @@ for k = 4%1:10
     X_hi_GA = squeeze(mean(X_hi,1));
     X_mid_GA = squeeze(mean(X_mid,1));
 
+    %%%%%%%%%%%%%%%%%%%%%%%%
+    % plot topographies of the ERP components
+    %%%%%%%%%%%%%%%%%%%%%%%%
     
-%     X_d_GA = X_hi_GA - X_lo_GA;
-%     [U,S,V] = svd(X_d_GA);
-%     
-    % figure
-    % subplot(1,3,1)
-    % imagesc(X_d_GA*X_d_GA');
-    % tit = title('cov of D_wave (<3 vs >7) topos');
-    % tit.FontSize = 14;
-    % 
-    % [U,S,V] = svd(squeeze(mean(X_lo,1)));
-    % subplot(1,3,2)
-    % topoplot(U(:,1), EEG.chanlocs,'style','both','electrodes','labelpoint');
-    % tit = title('Topographies of lowly scored trials');
-    % tit.FontSize = 14;
-    % 
-    % [U,S,V] = svd(squeeze(mean(X_hi,1)));
-    % subplot(1,3,3)
-    % topoplot(U(:,1), EEG.chanlocs,'style','both','electrodes','labelpoint');
-    % tit = title('Topographies of highly scored trials');
-    % tit.FontSize = 14;
+    X_d_GA = X_hi_GA - X_lo_GA;
+    [U,S,V] = svd(X_d_GA);
+    
+    figure
+    subplot(1,3,1)
+    imagesc(X_d_GA*X_d_GA');
+    tit = title('cov of D_wave (<3 vs >7) topos');
+    tit.FontSize = 14;
+    
+    [U,S,V] = svd(squeeze(mean(X_lo,1)));
+    subplot(1,3,2)
+    topoplot(U(:,1), EEG.chanlocs,'style','both','electrodes','labelpoint');
+    tit = title('Topographies of lowly scored trials');
+    tit.FontSize = 14;
+    
+    [U,S,V] = svd(squeeze(mean(X_hi,1)));
+    subplot(1,3,3)
+    topoplot(U(:,1), EEG.chanlocs,'style','both','electrodes','labelpoint');
+    tit = title('Topographies of highly scored trials');
+    tit.FontSize = 14;
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % END TOPOGRAPHIES
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %     subplot(4,3,k, 'Parent', p)
     t = linspace(-100, 500, 121);
@@ -316,3 +327,50 @@ tit.FontSize = 14;
 leg = legend({'low scores', 'high scores'});
 leg.FontSize = 14;
 vline(0);hline(0);grid on
+
+%% PROJECT THE SCORES:
+
+eig_of_interest = 2;
+g = [];
+scores_tmp = [];
+U = [];
+all_scores = [];
+for i = 1:11
+    scores_tmp = eval(lookup_tab{i,2});
+    all_scores = cat(2, all_scores, scores_tmp);
+    [U(:,:,i),~,~] = svd(scores_tmp);
+end
+
+% fix the eigs:
+flip_eigs = [1, 2, 3, 4, 5, 6];
+U(:,:,flip_eigs) = U(:,:,flip_eigs) * (-1);
+
+U_m = squeeze(mean(U,3));
+
+figure
+for i = 1:11
+    subplot(3,4,i)
+    imagesc(squeeze(U(:,:,i))); colorbar;
+end
+
+U_m = U_m * (-1);
+subplot(3,4,12)
+imagesc(U_m); colorbar
+tit = title('Avarage eigenvectors');
+tit.FontSize = 14;
+
+% project and normalize the scores:
+sc = mapminmax(U_m'* all_scores, 0,1);
+qq = quantile(sc, [0.33 0.66]);
+
+figure
+dsp = 0;
+for i = 1:11
+    sc_tmp = sc(:,1+dsp:50+dsp);
+    assignin('base', lookup_tab{i,2}, sc_tmp);
+    subplot(3,4,i)
+    histogram(sc_tmp); 
+    tit = title(num2str(i));
+    tit.FontSize = 14;
+    dsp = dsp + 50;
+end
