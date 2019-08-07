@@ -1,4 +1,4 @@
-function hhh=vline(x,in1,in2)
+function hhh=vline(x,in1,in2,in3)
 % function h=vline(x, linetype, label)
 % 
 % Draws a vertical line on the current axes at the location specified by 'x'.  Optional arguments are
@@ -69,12 +69,19 @@ else
     case 1
         linetype='r:';
         label='';
+        rotation = 0;
     case 2
         linetype=in1;
         label='';
+        rotation = 0;
     case 3
         linetype=in1;
         label=in2;
+        rotation = 0;
+    case 4
+        linetype=in1;
+        label=in2;
+        rotation = in3;
     end
 
     
@@ -90,9 +97,9 @@ else
         xrange=xx(2)-xx(1);
         xunit=(x-xx(1))/xrange;
         if xunit<0.8
-            text(x+0.01*xrange,y(1)+0.1*(y(2)-y(1)),label,'color',get(h,'color'))
+            text(x+0.01*xrange,y(1)+0.1*(y(2)-y(1)),label,'color',get(h,'color'), 'rotation', rotation)
         else
-            text(x-.05*xrange,y(1)+0.1*(y(2)-y(1)),label,'color',get(h,'color'))
+            text(x-.05*xrange,y(1)+0.1*(y(2)-y(1)),label,'color',get(h,'color'), 'rotation', rotation)
         end
     end     
 

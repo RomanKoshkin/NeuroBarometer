@@ -199,9 +199,9 @@ for k = 1:10
     MID_idx = find(not(responses(:,var_of_interest) <= lo_co) &...
         not(responses(:,var_of_interest) >= hi_co));
     
-    EEG.event(LO_idx).resp = deal('low');
-    EEG.event(MID_idx).resp = deal('mid');
-    EEG.event(HI_idx).resp = deal('high');
+    [EEG.event(LO_idx).resp] = deal('low');
+    [EEG.event(MID_idx).resp] = deal('mid');
+    [EEG.event(HI_idx).resp] = deal('high');
 
     lat_lo = [EEG.event(LO_idx).latency];
     lat_hi = [EEG.event(HI_idx).latency];

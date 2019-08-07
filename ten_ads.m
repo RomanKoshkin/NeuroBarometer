@@ -1,5 +1,6 @@
 % EEG = pop_loadset('filepath', '/Volumes/Transcend/10_ads', 'filename', 'six_subj.set');
-EEG = pop_loadset('filepath', '/Volumes/Transcend/10_ads', 'filename', 'eight_subj.set');
+% EEG = pop_loadset('filepath', '/Volumes/Transcend/10_ads', 'filename', 'eight_subj.set');
+EEG = pop_loadset('filepath', '/Volumes/Transcend/10_ads', 'filename', 'ten_subj_ica.set');
 %%
 c = 0;
 t = -100:5:295;
@@ -189,7 +190,7 @@ ax.YLim = [0 8];
 ax.XTickLabel = {'', ad, ''};
 text(1:10, score, num2cell(round(score,2)),'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'right')
 tit = title('A'); tit.FontSize = 14;
-ax.XLabel.String = 'Ad numbers (10 ads)';
+ax.XLabel.String = 'Ad numbers (50 ads)';
 
 %% LR alpha
 lch = [7 8 12 14];

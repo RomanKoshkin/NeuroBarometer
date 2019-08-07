@@ -1,7 +1,7 @@
 %% you need to load a raw dataset (fs = 2000 Hz)
 
-t0 = 24;
-t1 = 85;
+t0 = 17; % for Karpinskaya
+t1 = 77; % for Karpinskaya
 figure
 t = t0*EEG.srate:t1*EEG.srate;
 X = EEG.data(34,t);

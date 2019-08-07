@@ -1,7 +1,11 @@
+%%
+cd('/Users/RomanKoshkin/Documents/MATLAB/NeuroBarometer')
+% EEG = pop_loadset('filepath', '/Volumes/Transcend/10_ads', 'filename', 'eight_subj.set');
+EEG = pop_loadset('filepath', '/Volumes/Transcend/10_ads', 'filename', 'ten_subj_ica.set');
 %% plot ERPs on a given channel by subject
-% ad = [3    14    15    19    23    24    25    30    39    47];
-ad = [0];
-ch = 15;
+ad = [3    14    15    19    23    24    25    30    39    47];
+% ad = [0];
+ch = 17;
 t = -100:5:295;
 subjs = {'Deryabin', 'Kabanov', 'Kabanova', 'Ognevaya',...
         'Pyataeva', 'Rofe', 'Sukhanova', 'Vishnyakova', 'Karpinskaya', 'Orlichenya'};

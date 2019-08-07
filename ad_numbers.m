@@ -9,6 +9,7 @@ figure
 count = 0;
 EEG.event(1).code = count;
 for i = 2:length(b)
+    b(i)/EEG.srate
     if b(i)>b(i-1) * 10
         count = count + 1;
     end
@@ -28,7 +29,7 @@ f = ismember([EEG.event.code], 1);
 [EEG.event(f).code] = deal(0);
 
 changed = zeros(1,length([EEG.event.code]), 'logical');
-for i = 1:10
+for i = 1:12
     rep_from = lookup_tab(i,1);
     rep_to = lookup_tab(i,2);
 %     [num2str(rep_from), '  ', num2str(rep_to)]

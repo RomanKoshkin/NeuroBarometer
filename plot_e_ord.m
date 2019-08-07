@@ -1,9 +1,9 @@
-% plot_eq.m 
-% returns a 3D matrix of ERPs for specific ads
-function [ERP, se] = plot_e(EEG, ad)
-%     a = find(ismember([EEG.event.type], ad) & ismember({EEG.event.dataset}, 'Original file: NeoRec_2018-07-04_22-18-39.eeg')); % for 64 chan (old 50-ad dat)
+% returns a 3D matrix of ERPs for specifiec ads selected based on their
+% order in the dataset
+function [ERP, se] = plot_e_ord(EEG, ord, subj)
     
-    a = find(ismember([EEG.event.code], ad));
+    a = find(ismember([EEG.event.ord], ord) & ismember({EEG.event.subj}, subj));
+%     a = find(ismember([EEG.event.ord], ord));
     
     chan = 1:length(EEG.chanlocs);
     lats = round([EEG.event(a).latency]);
